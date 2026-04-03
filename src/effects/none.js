@@ -17,12 +17,12 @@ export function runNone(container, marqueeText, position = 'bottom') {
     const scanForWhiteBackgrounds = () => {
         console.log("🔍 [AnkiFX Debug] Detailed DOM Scan...");
         
-        const structural = ['html', 'body', '.card', '.iphone', '.mobile', '#qa'];
+        const structural = ['html', 'body', '.card', '.iphone', '.mobile', '#qa', '#content', '#container', '#outer'];
         structural.forEach(sel => {
             const el = document.querySelector(sel);
             if (el) {
                 const style = window.getComputedStyle(el);
-                console.log(`[Structural] ${sel}: bg='${style.backgroundColor}', img='${style.backgroundImage}', opacity='${style.opacity}'`);
+                console.log(`[Structural] ${sel}: bg='${style.backgroundColor}', img='${style.backgroundImage}', opacity='${style.opacity}', zIndex='${style.zIndex}'`);
             }
         });
 
@@ -36,7 +36,7 @@ export function runNone(container, marqueeText, position = 'bottom') {
                 const r = parseInt(match[1]);
                 const g = parseInt(match[2]);
                 const b = parseInt(match[3]);
-                return r > 230 && g > 230 && b > 230; // Check for near-white
+                return r > 200 && g > 200 && b > 200; // Check for any "light" color (not just pure white)
             }
             return false;
         };
@@ -44,6 +44,9 @@ export function runNone(container, marqueeText, position = 'bottom') {
         all.forEach(el => {
             if (el.closest('.eruda-container')) return;
             const style = window.getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            
+            // Check for light colors
             if (isLight(style.backgroundColor) || isLight(style.backgroundImage)) {
                 results.push({
                     tag: el.tagName,
@@ -54,6 +57,11 @@ export function runNone(container, marqueeText, position = 'bottom') {
                     element: el
                 });
             }
+            
+            // Check for full-screen elements
+            if (rect.width > window.innerWidth * 0.9 && rect.height > window.innerHeight * 0.9) {
+                console.log(`[FullSize] ${el.tagName}${el.id ? '#' + el.id : ''}.${el.className}: bg='${style.backgroundColor}', zIndex='${style.zIndex}', display='${style.display}'`);
+            }
         });
         
         if (results.length > 0) {
@@ -62,8 +70,6 @@ export function runNone(container, marqueeText, position = 'bottom') {
                 const selector = `${r.tag}${r.id ? '#' + r.id : ''}${r.classes ? '.' + r.classes.toString().split(' ').join('.') : ''}`;
                 console.log(`- %c${selector}`, 'color: #ff00ff; font-weight: bold;', r.bg, r.element);
             });
-        } else {
-            console.log("✅ [AnkiFX Debug] No light-colored elements found.");
         }
     };
 
