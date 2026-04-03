@@ -22,21 +22,21 @@ export const effect = {
     stop: stopJulia,
     preferredTrack: { title: "Acoustica Power Bundle 4", trackTitle: "AiR" },
     presets: [
-        { name: 'Black Hole', cRe: -0.8, cIm: 0.156, zoomDepth: 10, targetX: -0.527503, targetY: 0.075912 },
+        { name: 'Black Hole', cRe: -0.8, cIm: 0.156, zoomDepth: 8, targetX: -0.086441, targetY: -0.239323 },
         { name: 'Electric Lightning', cRe: 0.285, cIm: 0.013, zoomDepth: 6.0, targetX: -0.106662, targetY: 0.656613 },
         { name: 'Golden Dragon', cRe: -0.4, cIm: 0.6, zoomDepth: 9.0, targetX: -0.042175, targetY: -0.036744 },
         { name: 'Filigree', cRe: -0.70176, cIm: -0.3842, zoomDepth: 10.5, targetX: -0.096904, targetY: -0.656621 },
-        { name: 'Fractal Storm', cRe: -0.7269, cIm: 0.1889, zoomDepth: 10.5, targetX: -0.22, targetY: 0.56 },
-        { name: 'Seahorse Spiral', cRe: -0.74543, cIm: 0.11301, zoomDepth: 12.0, targetX: -0.5299, targetY: 0.0739 },
+        { name: 'Fractal Storm', cRe: -0.7269, cIm: 0.1889, zoomDepth: 10.5, targetX: -0.237086, targetY: 0.547981 },
+        { name: 'Seahorse Spiral', cRe: -0.74543, cIm: 0.11301, zoomDepth: 12.0, targetX: -0.529406, targetY: 0.072863 },
     ]
 };
 
 export function runJulia(container, marqueeText, position = 'bottom', config = {}) {
     const initialCRe = config.cRe !== undefined ? config.cRe : -0.8;
     const initialCIm = config.cIm !== undefined ? config.cIm : 0.156;
-    const zoomDepth = config.zoomDepth !== undefined ? config.zoomDepth : 10.0;
-    const targetX = config.targetX !== undefined ? config.targetX : -0.527503;
-    const targetY = config.targetY !== undefined ? config.targetY : 0.075912;
+    const zoomDepth = config.zoomDepth !== undefined ? config.zoomDepth : 8.0;
+    const targetX = config.targetX !== undefined ? config.targetX : -0.086441;
+    const targetY = config.targetY !== undefined ? config.targetY : -0.239323;
 
     // 1. Dual-Canvas Setup
     const wrapper = document.createElement('div');
