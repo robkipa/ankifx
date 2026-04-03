@@ -14,7 +14,19 @@ export function runNone(container, marqueeText, position = 'bottom') {
     document.documentElement.style.setProperty('--afx-body-bg', 'transparent');
     document.documentElement.style.setProperty('--afx-none-bg', 'transparent');
 
-    // 2. Create a clean transparent canvas for the marquee
+    // 2. Eruda Integration for mobile debugging
+    if (!window.eruda) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        script.onload = () => {
+            if (window.eruda) window.eruda.init();
+        };
+        document.head.appendChild(script);
+    } else {
+        try { window.eruda.init(); } catch(e) {}
+    }
+
+    // 3. Create a clean transparent canvas for the marquee
     const canvas = document.createElement('canvas');
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
@@ -36,7 +48,7 @@ export function runNone(container, marqueeText, position = 'bottom') {
     window.addEventListener('resize', resize);
     resize();
 
-    // 3. Initialize Marquee
+    // 4. Initialize Marquee
     const marquee = new Marquee(marqueeText, position, {
         color: '#ffffff',
         shadowColor: 'rgba(0,0,0,0.8)',
@@ -62,4 +74,9 @@ export function stopNone() {
     // Restore defaults when switching away
     document.documentElement.style.removeProperty('--afx-body-bg');
     document.documentElement.style.removeProperty('--afx-none-bg');
+    
+    // Hide Eruda if it exists, to keep the UI clean when switching back to animations
+    if (window.eruda) {
+        try { window.eruda.hide(); } catch(e) {}
+    }
 }
