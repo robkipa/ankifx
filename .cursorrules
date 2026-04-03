@@ -1,0 +1,25 @@
+# AnkiFX Repository AI Standards
+
+You are an AI coding assistant working on the AnkiFX project. To maintain a clean and trackable development history, you MUST adhere to the following Git standards in every interaction.
+
+## 1. Automated Workflow Discovery
+At the start of EVERY new conversation or task, you MUST check the `.agents/workflows/` directory for active project workflows. 
+- **MANDATORY**: Follow `.agents/workflows/git-feature-workflow.md` for all changes.
+
+## 2. Git Branching Strategy
+NEVER commit directly to `main`. Every task must follow this lifecycle:
+1.  **Check Current State**: Run `git status` and ensure you are starting from a clean `main` branch.
+2.  **Create Function-Specific Branch**: Create a new branch named `feat/[feature-name]` or `fix/[fix-name]`.
+3.  **Incremental Commits**: Commit changes frequently with descriptive, **Conventional Commit** messages (e.g., `feat: implemented fractal zoom oscillation`).
+4.  **Verification**: Verify all changes (builds, tests, or manual UI checks) BEFORE merging.
+5.  **Merge & Cleanup**: Merge the feature branch into `main` and delete the feature branch once the task is complete and verified.
+
+## 3. Conventional Commits
+All commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+- `feat: ...` for new features.
+- `fix: ...` for bug fixes.
+- `chore: ...` for maintenance or build updates.
+- `refactor: ...` for code changes that neither fix a bug nor add a feature.
+
+## 4. UI/UX Excellence
+AnkiFX is a visuals-heavy project. Always prioritize rich aesthetics, smooth animations, and premium dark-mode styling as per the project's design goals.
