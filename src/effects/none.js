@@ -15,35 +15,55 @@ export function runNone(container, marqueeText, position = 'bottom') {
     document.documentElement.style.setProperty('--afx-none-bg', 'transparent');
 
     const scanForWhiteBackgrounds = () => {
-        console.log("🔍 [AnkiFX Debug] Scanning DOM for white background elements...");
+        console.log("🔍 [AnkiFX Debug] Detailed DOM Scan...");
+        
+        const structural = ['html', 'body', '.card', '.iphone', '.mobile', '#qa'];
+        structural.forEach(sel => {
+            const el = document.querySelector(sel);
+            if (el) {
+                const style = window.getComputedStyle(el);
+                console.log(`[Structural] ${sel}: bg='${style.backgroundColor}', img='${style.backgroundImage}', opacity='${style.opacity}'`);
+            }
+        });
+
         const results = [];
         const all = document.querySelectorAll('*');
+        
+        const isLight = (color) => {
+            if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return false;
+            const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (match) {
+                const r = parseInt(match[1]);
+                const g = parseInt(match[2]);
+                const b = parseInt(match[3]);
+                return r > 230 && g > 230 && b > 230; // Check for near-white
+            }
+            return false;
+        };
+
         all.forEach(el => {
-            // Skip eruda itself
             if (el.closest('.eruda-container')) return;
-            
             const style = window.getComputedStyle(el);
-            const bg = style.backgroundColor;
-            // Check for white in various formats (computed style returns rgb/rgba in most browsers)
-            if (bg === 'rgb(255, 255, 255)' || bg === 'white' || bg === '#ffffff' || bg === '#fff') {
+            if (isLight(style.backgroundColor) || isLight(style.backgroundImage)) {
                 results.push({
                     tag: el.tagName,
                     id: el.id,
                     classes: el.className,
-                    background: bg,
+                    bg: style.backgroundColor,
+                    img: style.backgroundImage,
                     element: el
                 });
             }
         });
         
         if (results.length > 0) {
-            console.warn(`⚠️ [AnkiFX Debug] Found ${results.length} white elements:`, results);
+            console.warn(`⚠️ [AnkiFX Debug] Found ${results.length} light-colored elements:`);
             results.forEach(r => {
                 const selector = `${r.tag}${r.id ? '#' + r.id : ''}${r.classes ? '.' + r.classes.toString().split(' ').join('.') : ''}`;
-                console.log(`- %c${selector}`, 'color: #ff00ff; font-weight: bold;', r.element);
+                console.log(`- %c${selector}`, 'color: #ff00ff; font-weight: bold;', r.bg, r.element);
             });
         } else {
-            console.log("✅ [AnkiFX Debug] No white background elements found.");
+            console.log("✅ [AnkiFX Debug] No light-colored elements found.");
         }
     };
 
