@@ -1,35 +1,23 @@
 import { Marquee } from './marquee.js';
 
 let animationId = null;
+let currentW, currentH;
 
 export const effect = {
     id: 'geometry',
     name: 'Geometry',
     run: runGeometry,
-    stop: stopGeometry
+    stop: stopGeometry,
+    onResize: (w, h) => {
+        currentW = w;
+        currentH = h;
+    }
 };
 
-export function runGeometry(container, marqueeText, position = 'bottom') {
-    const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.zIndex = '-1';
-    canvas.style.pointerEvents = 'none';
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d', { alpha: false });
-    let w, h;
-
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        w = canvas.width = rect.width;
-        h = canvas.height = rect.height;
-    }
-    window.addEventListener('resize', resize);
-    resize();
+export function runGeometry(contexts, marqueeText, position = 'bottom') {
+    const ctx = contexts.ctx2d;
+    currentW = contexts.width;
+    currentH = contexts.height;
 
     let time = 0;
 
@@ -44,12 +32,12 @@ export function runGeometry(container, marqueeText, position = 'bottom') {
 
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = 'rgba(2, 2, 5, 0.3)';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, currentW, currentH);
 
         ctx.globalCompositeOperation = 'lighter';
-        const cx = w / 2;
-        const cy = h / 2;
-        const maxRadius = Math.max(w, h) * 0.85;
+        const cx = currentW / 2;
+        const cy = currentH / 2;
+        const maxRadius = Math.max(currentW, currentH) * 0.85;
 
         for (let i = 0; i < 35; i++) {
             const t = time + i * 0.05;
@@ -80,7 +68,7 @@ export function runGeometry(container, marqueeText, position = 'bottom') {
         }
 
         ctx.globalCompositeOperation = 'source-over';
-        marquee.render(ctx, w, h);
+        marquee.render(ctx, currentW, currentH);
         animationId = requestAnimationFrame(render);
     }
     animationId = requestAnimationFrame(render);

@@ -1,32 +1,27 @@
 import { Marquee } from './marquee.js';
 
 let animationId = null;
+let currentW, currentH;
 
 export const effect = {
     id: 'starfield',
     name: 'Starfield',
     run: runStarfield,
     stop: stopStarfield,
+    onResize: (w, h) => {
+        currentW = w;
+        currentH = h;
+    },
     preferredTrack: { trackTitle: "star wars title" }
 };
 
-export function runStarfield(container, marqueeText, position = 'bottom') {
-    const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.zIndex = '-1';
-    canvas.style.pointerEvents = 'none';
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d', { alpha: false });
-    let w, h;
-    let time = 0;
+export function runStarfield(contexts, marqueeText, position = 'bottom') {
+    const ctx = contexts.ctx2d;
+    currentW = contexts.width;
+    currentH = contexts.height;
 
     const stars = [];
-    const numStars = 50000; // MUCH more dense
+    const numStars = 50000;
     
     // --- COMPACT SIMPLEX NOISE ENGINE ---
     const perm = new Uint8Array(512);
@@ -84,9 +79,9 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
         reset() {
             const angle = Math.random() * Math.PI * 2;
             const dist = 0.2 + Math.random() * 0.4;
-            this.x = Math.cos(angle) * w * dist;
-            this.y = Math.sin(angle) * h * dist;
-            this.z = w;
+            this.x = Math.cos(angle) * currentW * dist;
+            this.y = Math.sin(angle) * currentH * dist;
+            this.z = currentW;
             this.sizeBase = 80 + Math.random() * 120;
             this.speed = 0.8;
             this.active = true;
@@ -174,10 +169,10 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
 
         draw(ctx) {
             if (!this.active) return;
-            const k = (w / 2) / this.z;
-            const px = this.x * k + w / 2, py = this.y * k + h / 2;
-            const size = (1 - this.z / w) * this.sizeBase;
-            if (px < -size * 3 || px > w + size * 3 || py < -size * 3 || py > h + size * 3) return;
+            const k = (currentW / 2) / this.z;
+            const px = this.x * k + currentW / 2, py = this.y * k + currentH / 2;
+            const size = (1 - this.z / currentW) * this.sizeBase;
+            if (px < -size * 3 || px > currentW + size * 3 || py < -size * 3 || py > currentH + size * 3) return;
 
             ctx.save();
             ctx.translate(px, py);
@@ -220,22 +215,12 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
     }
 
     const planet = new Planet();
-
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        w = canvas.width = rect.width;
-        h = canvas.height = rect.height;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // Initialize stars with proper 3D coordinates and colors
     const starColors = ['#FFFFFF', '#FFE4B5', '#E0FFFF', '#FFF0F5', '#F0F8FF'];
     for (let i = 0; i < numStars; i++) {
         stars.push({
-            x: (Math.random() - 0.5) * w * 4,
-            y: (Math.random() - 0.5) * h * 4,
-            z: Math.random() * w,
+            x: (Math.random() - 0.5) * currentW * 4,
+            y: (Math.random() - 0.5) * currentH * 4,
+            z: Math.random() * currentW,
             color: starColors[Math.floor(Math.random() * starColors.length)],
             sizeBase: 1.5 + Math.random() * 2
         });
@@ -248,13 +233,15 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
         outline: '#000'
     });
 
+    let time = 0;
+
     function render() {
         // Deep space with dark blue tint
         ctx.fillStyle = 'rgba(5, 5, 12, 1)';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, currentW, currentH);
 
-        const cx = w / 2;
-        const cy = h / 2;
+        const cx = currentW / 2;
+        const cy = currentH / 2;
 
         time += 0.01;
         planet.update();
@@ -266,18 +253,18 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
             star.z -= 4;
 
             if (star.z <= 0) {
-                star.x = (Math.random() - 0.5) * w * 4;
-                star.y = (Math.random() - 0.5) * h * 4;
-                star.z = w;
+                star.x = (Math.random() - 0.5) * currentW * 4;
+                star.y = (Math.random() - 0.5) * currentH * 4;
+                star.z = currentW;
                 continue;
             }
 
-            const k = (w / 2) / star.z;
+            const k = (currentW / 2) / star.z;
             const px = star.x * k + cx;
             const py = star.y * k + cy;
 
-            if (px >= 0 && px <= w && py >= 0 && py <= h) {
-                const depth = 1 - star.z / w;
+            if (px >= 0 && px <= currentW && py >= 0 && py <= currentH) {
+                const depth = 1 - star.z / currentW;
                 const size = depth * star.sizeBase;
                 
                 // LOD Optimization: Distant stars use fast fillRect
@@ -293,7 +280,7 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
                 ctx.strokeStyle = star.color;
                 
                 // Motion blur (stretch) - only for closer stars
-                const pk = (w / 2) / prevZ;
+                const pk = (currentW / 2) / prevZ;
                 const ppx = star.x * pk + cx;
                 const ppy = star.y * pk + cy;
                 
@@ -320,7 +307,7 @@ export function runStarfield(container, marqueeText, position = 'bottom') {
         ctx.globalAlpha = 1.0;
 
         // Marquee
-        marquee.render(ctx, w, h);
+        marquee.render(ctx, currentW, currentH);
 
         animationId = requestAnimationFrame(render);
     }

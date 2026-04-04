@@ -5,6 +5,14 @@ export class AnkiFX {
     static activeMarquee = null;
     static jukebox = null;
     static defaultMarqueeText = null;
+    static sharedGL = null;
+    static shared2D = null;
+    static glContext = null;
+    static ctx2D = null;
+    static currentEffectId = null;
+    static dpr = 1;
+    static width = 0;
+    static height = 0;
 
     static init(options = {}) {
         const config = window.AnkiFX_Config || {
@@ -75,13 +83,20 @@ export class AnkiFX {
         
         // Viewport Tuner System (Must be after UI injection if we want it in Body)
         this.initTuner(debug, activeEffect);
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => this.updateTuner(), 100);
-        });
-        window.addEventListener('resize', () => {
+        
+        const onLayoutChange = () => {
              // Subtle delay so Anki/iOS can settle their layout
-             setTimeout(() => this.updateTuner(), 50);
-        });
+             setTimeout(() => {
+                 this.handleResize();
+                 this.updateTuner();
+             }, 50);
+        };
+
+        window.addEventListener('orientationchange', onLayoutChange);
+        window.addEventListener('resize', onLayoutChange);
+        
+        // Initial resize/setup
+        this.handleResize();
         config.debug = debug;
         this.startEffect(config, background, options.marqueePosition, activeEffect);
         
@@ -432,10 +447,46 @@ export class AnkiFX {
 
         document.documentElement.style.setProperty('--tuner-height', `calc(100dvh + ${total}px)`);
 
-        // Re-trigger resize on effects
-        Object.values(EFFECTS).forEach(eff => {
-            if (eff.resize) eff.resize();
-        });
+        // Re-trigger resize on effects if they have custom resize logic
+        if (this.currentEffectId && EFFECTS[this.currentEffectId]?.onResize) {
+            EFFECTS[this.currentEffectId].onResize(this.width, this.height, this.dpr);
+        }
+    }
+
+    static handleResize() {
+        const background = document.getElementById('ankifx-background');
+        if (!background || !this.sharedGL || !this.shared2D) return;
+
+        const rect = background.getBoundingClientRect();
+        this.width = rect.width;
+        this.height = rect.height;
+        this.dpr = window.devicePixelRatio || 1;
+
+        // Resize GL Canvas
+        this.sharedGL.width = this.width * this.dpr;
+        this.sharedGL.height = this.height * this.dpr;
+        this.sharedGL.style.width = this.width + 'px';
+        this.sharedGL.style.height = this.height + 'px';
+
+        // Resize 2D Canvas
+        this.shared2D.width = this.width * this.dpr;
+        this.shared2D.height = this.height * this.dpr;
+        this.shared2D.style.width = this.width + 'px';
+        this.shared2D.style.height = this.height + 'px';
+
+        // Global context resets
+        if (this.glContext) {
+            this.glContext.viewport(0, 0, this.sharedGL.width, this.sharedGL.height);
+        }
+        if (this.ctx2D) {
+            this.ctx2D.setTransform(1, 0, 0, 1, 0, 0);
+            this.ctx2D.scale(this.dpr, this.dpr);
+        }
+
+        // Notify active effect
+        if (this.currentEffectId && EFFECTS[this.currentEffectId]?.onResize) {
+            EFFECTS[this.currentEffectId].onResize(this.width, this.height, this.dpr);
+        }
     }
 
     static injectUI(config, options, isMobile, debug, activeEffect) {
@@ -552,6 +603,20 @@ export class AnkiFX {
         const background = document.createElement('div');
         background.id = 'ankifx-background';
         document.body.appendChild(background);
+
+        // Persistent Canvas Creation
+        this.sharedGL = document.createElement('canvas');
+        this.sharedGL.id = 'afx-shared-gl';
+        this.sharedGL.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;';
+        background.appendChild(this.sharedGL);
+
+        this.shared2D = document.createElement('canvas');
+        this.shared2D.id = 'afx-shared-2d';
+        this.shared2D.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;';
+        background.appendChild(this.shared2D);
+
+        this.glContext = this.sharedGL.getContext('webgl', { alpha: false, antialias: false });
+        this.ctx2D = this.shared2D.getContext('2d');
 
         document.body.appendChild(overlay);
 
@@ -697,8 +762,13 @@ export class AnkiFX {
                 localStorage.setItem('ankifx_preferred_effect', newEffect);
                 
                 Object.values(EFFECTS).forEach(eff => eff.stop());
-                const canvases = document.querySelectorAll('#ankifx-background canvas, #ankifx-overlay canvas');
-                canvases.forEach(c => c.remove());
+                
+                // Clear both canvases for the new effect
+                if (this.ctx2D) this.ctx2D.clearRect(0, 0, this.width, this.height);
+                if (this.glContext) {
+                    this.glContext.clearColor(0, 0, 0, 0);
+                    this.glContext.clear(this.glContext.COLOR_BUFFER_BIT);
+                }
 
                 config.defaultEffect = newEffect;
                 const tuner = document.getElementById('afx-tuner-ui');
@@ -753,8 +823,7 @@ export class AnkiFX {
                     
                     // Restart Julia effect
                     EFFECTS['julia'].stop();
-                    const canvases = document.querySelectorAll('#ankifx-background canvas, #ankifx-overlay canvas');
-                    canvases.forEach(c => c.remove());
+                    if (this.ctx2D) this.ctx2D.clearRect(0, 0, this.width, this.height);
                     AnkiFX.startEffect(config, background, options.marqueePosition, 'julia');
                 }
             });
@@ -773,7 +842,17 @@ export class AnkiFX {
 
         const effect = EFFECTS[activeEffect];
         if (effect) {
-            AnkiFX.activeMarquee = effect.run(container, config.marquee, position, config);
+            const sharedContexts = {
+                gl: this.glContext,
+                ctx2d: this.ctx2D,
+                canvasGL: this.sharedGL,
+                canvas2D: this.shared2D,
+                width: this.width,
+                height: this.height,
+                dpr: this.dpr
+            };
+            this.currentEffectId = activeEffect;
+            AnkiFX.activeMarquee = effect.run(sharedContexts, config.marquee, position, config);
             
             // Respect toggle state on new effect start
             const marqueeEnabled = localStorage.getItem('ankifx_marquee_enabled') !== 'false';

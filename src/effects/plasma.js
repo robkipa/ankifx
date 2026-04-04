@@ -1,35 +1,23 @@
 import { Marquee } from './marquee.js';
 
 let animationId = null;
+let currentW, currentH;
 
 export const effect = {
     id: 'plasma',
     name: 'Plasma',
     run: runPlasma,
-    stop: stopPlasma
+    stop: stopPlasma,
+    onResize: (w, h) => {
+        currentW = w;
+        currentH = h;
+    }
 };
 
-export function runPlasma(container, marqueeText, position = 'bottom') {
-    const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.zIndex = '-1';
-    canvas.style.pointerEvents = 'none';
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d', { alpha: false });
-    let w, h;
-
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        w = canvas.width = rect.width;
-        h = canvas.height = rect.height;
-    }
-    window.addEventListener('resize', resize);
-    resize();
+export function runPlasma(contexts, marqueeText, position = 'bottom') {
+    const ctx = contexts.ctx2d;
+    currentW = contexts.width;
+    currentH = contexts.height;
 
     let time = 0;
 
@@ -44,8 +32,8 @@ export function runPlasma(container, marqueeText, position = 'bottom') {
         
         // Render plasma using blocks for performance
         const blockSize = 15;
-        const cols = Math.ceil(w / blockSize);
-        const rows = Math.ceil(h / blockSize);
+        const cols = Math.ceil(currentW / blockSize);
+        const rows = Math.ceil(currentH / blockSize);
 
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
@@ -67,7 +55,7 @@ export function runPlasma(container, marqueeText, position = 'bottom') {
         }
 
         // Marquee
-        marquee.render(ctx, w, h);
+        marquee.render(ctx, currentW, currentH);
 
         animationId = requestAnimationFrame(render);
     }

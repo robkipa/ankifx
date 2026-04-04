@@ -1,11 +1,29 @@
 import { Marquee } from './marquee.js';
 
 let animationId = null;
+let currentW, currentH;
+let game = null;
+
+function buildGame() {
+    if (currentW === undefined || currentH === undefined) return;
+    // Cell size: aim for ~25 columns across the width, min 14px
+    const cellSize = Math.max(14, Math.floor(currentW / 25));
+    const cols = Math.floor(currentW / cellSize);
+    const rows = Math.floor(currentH / cellSize);
+    game = new TetrisGame(cols, rows, cellSize);
+    game._selectTarget();
+}
+
 export const effect = {
     id: 'tetris',
     name: 'Tetris',
     run: runTetris,
     stop: stopTetris,
+    onResize: (w, h) => {
+        currentW = w;
+        currentH = h;
+        buildGame();
+    },
     preferredTrack: { title: "WinTask 3", trackTitle: "Whoopees Tetris" }
 };
 
@@ -433,43 +451,12 @@ class TetrisGame {
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
-export function runTetris(container, marqueeText, position = 'bottom') {
-    const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.zIndex = '-1';
-    canvas.style.pointerEvents = 'none';
-    container.appendChild(canvas);
+export function runTetris(contexts, marqueeText, position = 'bottom') {
+    const ctx = contexts.ctx2d;
+    currentW = contexts.width;
+    currentH = contexts.height;
 
-    const ctx = canvas.getContext('2d');
-    let w, h;
-    let game = null;
-    let frameCount = 0;
-
-    // Simulation logic is now handled per-frame inside game.step()
-    // instead of hopping every N frames globally.
-
-    function buildGame() {
-        // Cell size: aim for ~25 columns across the width, min 14px
-        const cellSize = Math.max(14, Math.floor(w / 25));
-        const cols = Math.floor(w / cellSize);
-        const rows = Math.floor(h / cellSize);
-        game = new TetrisGame(cols, rows, cellSize);
-        game._selectTarget();
-    }
-
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        w = canvas.width = rect.width;
-        h = canvas.height = rect.height;
-        buildGame();
-    }
-
-    window.addEventListener('resize', resize);
-    resize();
+    buildGame();
 
     const marquee = new Marquee(marqueeText, position, {
         color: '#f0f0f0',
@@ -481,15 +468,15 @@ export function runTetris(container, marqueeText, position = 'bottom') {
     function render() {
         // Dark semi-transparent background
         ctx.fillStyle = 'rgba(8, 6, 18, 0.92)';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, currentW, currentH);
 
         // Subtle grid lines
         ctx.strokeStyle = 'rgba(255,255,255,0.04)';
         ctx.lineWidth = 0.5;
         if (game) {
             const cs = game.cellSize;
-            const ox = Math.floor((w - game.cols * cs) / 2);
-            const oy = Math.floor((h - game.rows * cs) / 2);
+            const ox = Math.floor((currentW - game.cols * cs) / 2);
+            const oy = Math.floor((currentH - game.rows * cs) / 2);
 
             for (let c = 0; c <= game.cols; c++) {
                 ctx.beginPath();
@@ -511,7 +498,7 @@ export function runTetris(container, marqueeText, position = 'bottom') {
             game.draw(ctx, ox, oy);
         }
 
-        marquee.render(ctx, w, h);
+        marquee.render(ctx, currentW, currentH);
 
         animationId = requestAnimationFrame(render);
     }

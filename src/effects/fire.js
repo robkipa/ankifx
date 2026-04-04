@@ -1,11 +1,17 @@
 import { Marquee } from './marquee.js';
 
 let animationId = null;
+let currentW, currentH;
+
 export const effect = {
     id: 'fire',
     name: 'Doom Fire',
     run: runFire,
     stop: stopFire,
+    onResize: (w, h) => {
+        currentW = w;
+        currentH = h;
+    },
     preferredTrack: { title: "Doom 3 BFG Edition", trackTitle: "DOOM E1M1" }
 };
 
@@ -18,23 +24,14 @@ const FIRE_PALETTE = [
     [0xCF,0x7F,0x0F], [0xCF,0x87,0x17], [0xC7,0x87,0x17], [0xC7,0x8F,0x17],
     [0xC7,0x97,0x1F], [0xBF,0x9F,0x1F], [0xBF,0x9F,0x1F], [0xBF,0xA7,0x27],
     [0xBF,0xA7,0x27], [0xBF,0xAF,0x2F], [0xB7,0xAF,0x2F], [0xB7,0xB7,0x2F],
-    [0xB7,0xB7,0x37], [0xCF,0xCF,0x6F], [0xDF,0xDF,0x9F], [0xEF,0xEF,0xC7],
+    [0xB7,0xB7,0x37], [0xCF,0xCF,0x6F], [0xDF,0xDF,0x9F], [0xEF,0xEF,xC7],
     [0xFF,0xFF,0xFF]
 ];
 
-export function runFire(container, marqueeText, position = 'bottom') {
-    const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.zIndex = '-1';
-    canvas.style.pointerEvents = 'none';
-    canvas.style.imageRendering = 'pixelated'; // Keep that retro look
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d', { alpha: false });
+export function runFire(contexts, marqueeText, position = 'bottom') {
+    const ctx = contexts.ctx2d;
+    currentW = contexts.width;
+    currentH = contexts.height;
     
     // Internal resolution for the fire effect (320px wide, height proportional)
     const fireWidth = 320;
@@ -89,14 +86,6 @@ export function runFire(container, marqueeText, position = 'bottom') {
         }
     }
 
-    let w, h;
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        w = canvas.width = rect.width;
-        h = canvas.height = rect.height;
-    }
-    window.addEventListener('resize', resize);
-    resize();
     initFire();
 
     const marquee = new Marquee(marqueeText, position, {
@@ -115,11 +104,11 @@ export function runFire(container, marqueeText, position = 'bottom') {
         ctx.save();
         // Disable smoothing for pixelated look
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(offscreen, 0, 0, w, h);
+        ctx.drawImage(offscreen, 0, 0, currentW, currentH);
         ctx.restore();
 
         // Overlay marquee
-        marquee.render(ctx, w, h);
+        marquee.render(ctx, currentW, currentH);
         
         animationId = requestAnimationFrame(render);
     }

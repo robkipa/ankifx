@@ -1,37 +1,23 @@
 import { Marquee } from './marquee.js';
 
 let animationId = null;
+let currentW, currentH;
 
 export const effect = {
     id: 'debug',
     name: 'DEBUG',
     run: runDebug,
-    stop: stopDebug
+    stop: stopDebug,
+    onResize: (w, h) => {
+        currentW = w;
+        currentH = h;
+    }
 };
 
-export function runDebug(container, marqueeText, position = 'bottom') {
-    const canvas = document.createElement('canvas');
-    canvas.id = 'afx-debug-canvas';
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%'; 
-    canvas.style.height = '100%'; 
-    canvas.style.zIndex = '-1';
-    canvas.style.backgroundColor = '#000';
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d');
-    let w, h;
-
-    function resize() {
-        const rect = container.getBoundingClientRect();
-        w = canvas.width = rect.width;
-        h = canvas.height = rect.height;
-    }
-
-    window.addEventListener('resize', resize);
-    resize();
+export function runDebug(contexts, marqueeText, position = 'bottom') {
+    const ctx = contexts.ctx2d;
+    currentW = contexts.width;
+    currentH = contexts.height;
 
     const marquee = new Marquee(marqueeText, position, {
         color: '#00ff00',
@@ -41,17 +27,17 @@ export function runDebug(container, marqueeText, position = 'bottom') {
 
     function render() {
         ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, currentW, currentH);
 
         // Subgrid (10px)
         ctx.strokeStyle = '#111';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
-        for (let x = 0; x <= w; x += 10) {
-            ctx.moveTo(x, 0); ctx.lineTo(x, h);
+        for (let x = 0; x <= currentW; x += 10) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, currentH);
         }
-        for (let y = 0; y <= h; y += 10) {
-            ctx.moveTo(0, y); ctx.lineTo(w, y);
+        for (let y = 0; y <= currentH; y += 10) {
+            ctx.moveTo(0, y); ctx.lineTo(currentW, y);
         }
         ctx.stroke();
 
@@ -59,11 +45,11 @@ export function runDebug(container, marqueeText, position = 'bottom') {
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let x = 0; x <= w; x += 50) {
-            ctx.moveTo(x, 0); ctx.lineTo(x, h);
+        for (let x = 0; x <= currentW; x += 50) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, currentH);
         }
-        for (let y = 0; y <= h; y += 50) {
-            ctx.moveTo(0, y); ctx.lineTo(w, y);
+        for (let y = 0; y <= currentH; y += 50) {
+            ctx.moveTo(0, y); ctx.lineTo(currentW, y);
         }
         ctx.stroke();
 
@@ -71,18 +57,18 @@ export function runDebug(container, marqueeText, position = 'bottom') {
         ctx.strokeStyle = '#444';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let x = 0; x <= w; x += 100) {
-            ctx.moveTo(x, 0); ctx.lineTo(x, h);
+        for (let x = 0; x <= currentW; x += 100) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, currentH);
         }
-        for (let y = 0; y <= h; y += 100) {
-            ctx.moveTo(0, y); ctx.lineTo(w, y);
+        for (let y = 0; y <= currentH; y += 100) {
+            ctx.moveTo(0, y); ctx.lineTo(currentW, y);
         }
         ctx.stroke();
 
         // Draw Labels (every 50px)
         ctx.font = '9px monospace';
-        for (let x = 0; x <= w; x += 50) {
-            for (let y = 0; y <= h; y += 50) {
+        for (let x = 0; x <= currentW; x += 50) {
+            for (let y = 0; y <= currentH; y += 50) {
                 const isMajor = (x % 100 === 0 && y % 100 === 0);
                 ctx.fillStyle = isMajor ? '#0f0' : '#080';
                 ctx.fillText(`${x},${y}`, x + 2, y + 10);
@@ -93,11 +79,11 @@ export function runDebug(container, marqueeText, position = 'bottom') {
         ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
-        ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+        ctx.moveTo(currentW / 2, 0); ctx.lineTo(currentW / 2, currentH);
+        ctx.moveTo(0, currentH / 2); ctx.lineTo(currentW, currentH / 2);
         ctx.stroke();
         ctx.fillStyle = '#0ff';
-        ctx.fillText(`CENTER: ${Math.floor(w/2)},${Math.floor(h/2)}`, w/2 + 5, h/2 - 5);
+        ctx.fillText(`CENTER: ${Math.floor(currentW/2)},${Math.floor(currentH/2)}`, currentW/2 + 5, currentH/2 - 5);
 
         // Draw Viewport Info
         ctx.fillStyle = '#fff';
@@ -117,32 +103,32 @@ export function runDebug(container, marqueeText, position = 'bottom') {
         ctx.fillStyle = '#f0f';
         ctx.font = 'bold 12px monospace';
         ctx.fillText(`(0,0)`, 5, 15);
-        ctx.fillText(`(${w},0)`, w - 65, 15);
-        ctx.fillText(`(0,${h})`, 5, h - 5);
-        ctx.fillText(`(${w},${h})`, w - 65, h - 5);
+        ctx.fillText(`(${currentW},0)`, currentW - 65, 15);
+        ctx.fillText(`(0,${currentH})`, 5, currentH - 5);
+        ctx.fillText(`(${currentW},${currentH})`, currentW - 65, currentH - 5);
 
         // Bottom Edge Warning
         ctx.strokeStyle = '#f00';
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(0, h - 2);
-        ctx.lineTo(w, h - 2);
+        ctx.moveTo(0, currentH - 2);
+        ctx.lineTo(currentW, currentH - 2);
         ctx.stroke();
         
         ctx.fillStyle = '#f00';
         ctx.font = 'bold 18px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('--- CANVAS BOTTOM ---', w / 2, h - 10);
+        ctx.fillText('--- CANVAS BOTTOM ---', currentW / 2, currentH - 10);
         ctx.textAlign = 'left';
 
         // Right Edge Warning
         ctx.beginPath();
-        ctx.moveTo(w - 2, 0);
-        ctx.lineTo(w - 2, h);
+        ctx.moveTo(currentW - 2, 0);
+        ctx.lineTo(currentW - 2, currentH);
         ctx.stroke();
 
         // Overlay marquee
-        marquee.render(ctx, w, h);
+        marquee.render(ctx, currentW, currentH);
 
         animationId = requestAnimationFrame(render);
     }
