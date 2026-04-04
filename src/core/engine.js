@@ -383,12 +383,12 @@ export class AnkiFX {
         const btnBack = document.createElement('button');
         btnBack.id = 'afx-btn-back';
         btnBack.className = 'afx-playback-btn';
-        btnBack.textContent = '⏪';
+        btnBack.textContent = '⏮️';
 
         const btnSkip = document.createElement('button');
         btnSkip.id = 'afx-btn-skip';
         btnSkip.className = 'afx-playback-btn';
-        btnSkip.textContent = '⏭\uFE0F';
+        btnSkip.textContent = '⏭️';
 
         overlay.appendChild(btnBack);
         overlay.appendChild(btnSkip);

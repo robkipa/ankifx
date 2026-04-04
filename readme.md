@@ -14,7 +14,7 @@ AnkiFX abstracts the visual layer into a standalone JavaScript engine. Anki temp
 * **Keygen Jukebox:** Pure JavaScript tracker music player powered by [`funkymed-flod-module-player`](https://www.npmjs.com/package/funkymed-flod-module-player). Streams `.xm`, `.mod`, `.s3m`, and `.it` files from the [`michioxd/keygen-music`](https://github.com/michioxd/keygen-music) GitHub repository. No Wasm, no bundled audio assets.
   * Configs can specify a `trackTitle` to attempt to play a specific track on start; if not found, a random one is selected.
   * Gracefully fails offline: marquee updates to `NO INTERNET OR BLOCKED ... TRY AGAIN?` without breaking the rest of the UI.
-  * Back (`⏪`) and Skip (`⏭`) playback controls appear when BGM is active. On mobile they float in the marquee zone; on desktop/iPad they sit in the bottom control row.
+  * Back (`⏮️`) and Skip (`⏭️`) playback controls appear when BGM is active. On mobile they float in the marquee zone; on desktop/iPad they sit in the bottom control row.
   * 50-track history stack with cursor-based back/forward traversal (like a browser's history).
   * Async race conditions on rapid skip are eliminated via a generation counter (`_opId`).
 * **Glassmorphism UI:** Built-in "Terms of Service" consent overlay with a countdown timer and blur-backdrop effects.
