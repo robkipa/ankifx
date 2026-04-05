@@ -132,7 +132,8 @@ export class Jukebox {
     }
 
     async _playTrack(track, opId) {
-        const trackUrl = this.baseRawUrl + track.path;
+        const encodedPath = track.path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        const trackUrl = this.baseRawUrl + encodedPath;
         const res = await fetch(trackUrl);
         if (!res.ok) throw new Error("Failed to fetch audio file");
         if (opId !== this._opId) return; // superseded while fetching
