@@ -43,6 +43,15 @@ html.afx-effect-none #afx-shared-2d {
     }
 }
 
+/* --- Aurora Visual Polish: Low-Res Smoothing --- */
+#afx-shared-2d.afx-aurora-active {
+    filter: blur(8px);
+    width: 12.5% !important;
+    height: 12.5% !important;
+    transform: scale(8.1) !important;
+    transform-origin: top left !important;
+}
+
 html, body {
     margin: 0 !important; padding: 0 !important;
     width: 100% !important;
