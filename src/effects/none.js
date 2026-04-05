@@ -23,19 +23,8 @@ export function runNone(contexts, config) {
     currentW = contexts.width;
     currentH = contexts.height;
 
-    // 1. Detect Anki Theme (Night Mode)
-    const isNightMode = document.body.classList.contains('nightMode') || 
-                        document.body.classList.contains('night_mode') ||
-                        window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    // 2. Apply theme-specific colors
-    if (isNightMode) {
-        document.documentElement.style.setProperty('--afx-body-bg', '#2c2c2c', 'important');
-        document.documentElement.style.setProperty('--afx-body-color', '#ffffff', 'important');
-    } else {
-        document.documentElement.style.setProperty('--afx-body-bg', '#f5f5f5', 'important');
-        document.documentElement.style.setProperty('--afx-body-color', '#000000', 'important');
-    }
+    // Theme handling is now purely CSS-based via .afx-effect-none on HTML element
+    // and Anki's native .nightMode class.
 
     function render() {
         ctx.clearRect(0, 0, currentW, currentH);
@@ -49,6 +38,4 @@ export function stopNone() {
         cancelAnimationFrame(animationId);
         animationId = null;
     }
-    document.documentElement.style.removeProperty('--afx-body-bg');
-    document.documentElement.style.removeProperty('--afx-body-color');
 }

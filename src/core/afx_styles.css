@@ -12,6 +12,37 @@
     --afx-none-bg: var(--afx-bg-color, black);
 }
 
+/* --- THEME REACTIVITY --- */
+/* None effect: Reactive Light/Dark switching */
+html.afx-effect-none {
+    --afx-body-bg: #f5f5f5;
+    --afx-body-color: #000000;
+}
+
+/* Detect Anki Night Mode / System Dark Preference */
+html.afx-effect-none.nightMode,
+html.afx-effect-none.night_mode,
+.nightMode html.afx-effect-none,
+.night_mode html.afx-effect-none,
+body.nightMode .afx-effect-none,
+body.night_mode .afx-effect-none {
+    --afx-body-bg: #2c2c2c;
+    --afx-body-color: #ffffff;
+}
+
+/* Hide canvases when NO effect is selected to allow CSS background to show */
+html.afx-effect-none #afx-shared-gl,
+html.afx-effect-none #afx-shared-2d {
+    display: none !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    html.afx-effect-none {
+        --afx-body-bg: #2c2c2c;
+        --afx-body-color: #ffffff;
+    }
+}
+
 html, body {
     margin: 0 !important; padding: 0 !important;
     width: 100% !important;

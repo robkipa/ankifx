@@ -642,6 +642,13 @@ export class AnkiFX {
             };
             this.currentEffectId = activeEffect;
             
+            // Apply effect-specific class to HTML for styling (e.g., afx-effect-none)
+            const html = document.documentElement;
+            Array.from(html.classList).forEach(c => {
+                if (c.startsWith('afx-effect-')) html.classList.remove(c);
+            });
+            html.classList.add(`afx-effect-${activeEffect}`);
+            
             // Apply effect-specific marquee styling
             if (this.marquee) {
                 this.marquee.updateStyles(effect.marqueeFont || {});
