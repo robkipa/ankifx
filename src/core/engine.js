@@ -31,7 +31,7 @@ export class AnkiFX {
             defaultEffect: "geometry",
             debug: false,
             countdown: 30,
-            marqueePosition: 'bottom',
+            marqueePosition: 'top',
             ...(window.AnkiFX_Config || {}),
             ...templateOptions
         };
@@ -42,7 +42,7 @@ export class AnkiFX {
         // Check if Anki flipped the card and overlay is already running
         if (document.getElementById('ankifx-overlay')) {
             const overlay = document.getElementById('ankifx-overlay');
-            
+
             // If we are already agreed, we don't show the disclaimer again
             if (overlay.classList.contains('afx-agreed-state')) {
                 const qa = document.getElementById("qa");
@@ -57,7 +57,7 @@ export class AnkiFX {
         // New session / First launch: Clear old UI and reset agreed state
         document.documentElement.classList.remove('afx-scroll-lock');
         document.documentElement.classList.remove('afx-agreed');
-        
+
         // Remove existing elements to prevent duplicates
         ['ankifx-overlay', 'ankifx-background', 'afx-tuner-ui', 'afx-btn-back', 'afx-btn-skip'].forEach(id => {
             const el = document.getElementById(id);
@@ -65,7 +65,7 @@ export class AnkiFX {
         });
 
         this.defaultMarqueeText = config.marquee;
-        
+
         // --- RESTORED: Build the song map from registry ---
         this.EFFECT_SONG_MAP = {};
         Object.entries(EFFECTS).forEach(([id, eff]) => {
@@ -73,7 +73,7 @@ export class AnkiFX {
         });
 
         this.injectCSS();
-        
+
         // Resolve active effect (Card Config > Preference > Default)
         const cardDefault = window.AnkiFX_Config?.defaultEffect;
         let activeEffect;
@@ -88,22 +88,22 @@ export class AnkiFX {
         // Pass isMobile and config down to the UI injector
         const { overlay, background } = this.injectUI(config, isMobile, activeEffect);
 
-        
+
         // Viewport Tuner System (Must be after UI injection if we want it in Body)
         this.initTuner(config.debug, activeEffect);
 
-        
+
         const onLayoutChange = () => {
-             // Subtle delay so Anki/iOS can settle their layout
-             setTimeout(() => {
-                 this.handleResize();
-                 this.updateTuner();
-             }, 50);
+            // Subtle delay so Anki/iOS can settle their layout
+            setTimeout(() => {
+                this.handleResize();
+                this.updateTuner();
+            }, 50);
         };
 
         window.addEventListener('orientationchange', onLayoutChange);
         window.addEventListener('resize', onLayoutChange);
-        
+
         // Initial resize/setup
         this.handleResize();
 
@@ -119,7 +119,7 @@ export class AnkiFX {
 
         this.startEffect(config, background, config.marqueePosition, activeEffect);
 
-        
+
         // Initialize Marquee state from persistence
         const marqueeEnabled = localStorage.getItem('ankifx_marquee_enabled') !== 'false';
         if (this.marquee) {
@@ -138,21 +138,21 @@ export class AnkiFX {
     static initTuner(debug, activeEffect) {
         if (!debug) return;
         if (document.getElementById('afx-tuner-ui')) return;
-        
+
         const tuner = document.createElement('div');
         tuner.id = 'afx-tuner-ui';
-        
+
         // Only show if debug effect is active
         if (activeEffect === 'debug') tuner.classList.add('active');
 
         const savedOffset = localStorage.getItem('ankifx_tuner_offset');
         const style = getComputedStyle(document.documentElement);
         const header = parseInt(style.getPropertyValue('--io-header')) || 0;
-        
+
         // If never touched, default to -header
         const initialOffset = savedOffset !== null ? parseInt(savedOffset) : -header;
         this.tunerAutoUpdate = savedOffset === null;
-        
+
         tuner.innerHTML = `
             <div style="font-weight: bold; color: #ff00ff; margin-bottom: 5px;">VIEWPORT TUNER</div>
             <input type="range" id="afx-tuner-range" min="-300" max="300" value="${initialOffset}">
@@ -215,7 +215,7 @@ export class AnkiFX {
         const offsetVal = document.getElementById('afx-tuner-offset-val');
         const headerVal = document.getElementById('afx-tuner-header-val');
         const totalVal = document.getElementById('afx-tuner-total-val');
-        
+
         if (!slider) return;
 
         const offset = parseInt(slider.value);
@@ -294,7 +294,7 @@ export class AnkiFX {
         // Space allocation for marquee
         const screenWidth = window.innerWidth || document.documentElement.clientWidth || 800;
         const scale = screenWidth < 480 ? 0.65 : (screenWidth < 768 ? 0.8 : 1.0);
-        const marqueeSpace = Math.max(55, Math.ceil(85 * scale)); 
+        const marqueeSpace = Math.max(55, Math.ceil(85 * scale));
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         if (isIOS) {
@@ -309,11 +309,11 @@ export class AnkiFX {
         const marqueeEnabled = localStorage.getItem('ankifx_marquee_enabled') !== 'false';
         const juliaPresets = EFFECTS['julia']?.presets || [];
         const isSmallScreen = screenWidth < 480;
-        
+
         // --- Labels with Mobile Shortening ---
         const textPrefix = isSmallScreen ? '📜 ' : '📜 TEXT: ';
-        const bgmPrefix = isSmallScreen ? '' : ' BGM: '; 
-        
+        const bgmPrefix = isSmallScreen ? '' : ' BGM: ';
+
         const marqueeStatusLabel = isSmallScreen ? textPrefix.trim() : (marqueeEnabled ? `${textPrefix}ON` : `${textPrefix}OFF`);
         const bgmStatusOff = isSmallScreen ? '🔇' : `🔇${bgmPrefix}OFF`;
         const bgmStatusOn = isSmallScreen ? '🔊' : `🔊${bgmPrefix}ON`;
@@ -444,7 +444,7 @@ export class AnkiFX {
 
         overlay.appendChild(btnBack);
         overlay.appendChild(btnSkip);
-        
+
         // --- UNIVERSAL PROPAGATION STOPPER (AnkiMobile Fix) ---
         const stopProps = (e) => {
             const isAgreed = overlay.classList.contains('afx-agreed-state');
@@ -453,7 +453,7 @@ export class AnkiFX {
             // 1. Before Agreement: Protect the entire screen from accidental flips
             if (!isAgreed) {
                 e.stopPropagation();
-            } 
+            }
             // 2. After Agreement: Only protect UI controls; empty space remains flippable
             else if (isInteractive) {
                 e.stopPropagation();
@@ -465,7 +465,7 @@ export class AnkiFX {
 
         // Logic Bindings
         const btn = document.getElementById('afx-consent-btn');
-        
+
         if (hasTerms && btn) {
             let countdown = config.countdown || 0;
 
@@ -504,7 +504,7 @@ export class AnkiFX {
         const audioToggle = document.getElementById('afx-audio-toggle');
         if (audioToggle) {
             const status = document.getElementById('afx-bgm-status');
-            
+
             // Sync initial state
             if (audioToggle.checked) {
                 overlay.classList.add('afx-music-playing');
@@ -584,9 +584,9 @@ export class AnkiFX {
             effectSelector.addEventListener('change', (e) => {
                 const newEffect = e.target.value;
                 localStorage.setItem('ankifx_preferred_effect', newEffect);
-                
+
                 Object.values(EFFECTS).forEach(eff => eff.stop());
-                
+
                 // Clear both canvases for the new effect
                 if (this.ctx2D) this.ctx2D.clearRect(0, 0, this.width, this.height);
                 if (this.glContext) {
@@ -616,20 +616,20 @@ export class AnkiFX {
                 if (AnkiFX.jukebox && AnkiFX.jukebox.isPlaying) {
                     const targetTrack = config.trackTitle || AnkiFX.EFFECT_SONG_MAP[newEffect] || null;
                     const currentTrack = AnkiFX.jukebox.currentTrack;
-                    
+
                     let isNewTrack = false;
                     if (targetTrack) {
                         if (typeof targetTrack === 'string') {
                             isNewTrack = !currentTrack || currentTrack.title.toLowerCase() !== targetTrack.toLowerCase();
                         } else {
                             // Target is object { title, trackTitle, artist }
-                            isNewTrack = !currentTrack || 
-                                         (targetTrack.title && currentTrack.title.toLowerCase() !== targetTrack.title.toLowerCase()) ||
-                                         (targetTrack.trackTitle && currentTrack.trackTitle.toLowerCase() !== targetTrack.trackTitle.toLowerCase()) ||
-                                         (targetTrack.artist && (currentTrack.artist || "").toLowerCase() !== targetTrack.artist.toLowerCase());
+                            isNewTrack = !currentTrack ||
+                                (targetTrack.title && currentTrack.title.toLowerCase() !== targetTrack.title.toLowerCase()) ||
+                                (targetTrack.trackTitle && currentTrack.trackTitle.toLowerCase() !== targetTrack.trackTitle.toLowerCase()) ||
+                                (targetTrack.artist && (currentTrack.artist || "").toLowerCase() !== targetTrack.artist.toLowerCase());
                         }
                     }
-                    
+
                     if (isNewTrack) {
                         AnkiFX.jukebox.playNext(targetTrack);
                     }
@@ -645,7 +645,7 @@ export class AnkiFX {
                 if (preset) {
                     // Update current config with preset coordinates
                     Object.assign(config, preset);
-                    
+
                     // Restart Julia effect
                     EFFECTS['julia'].stop();
                     if (this.ctx2D) this.ctx2D.clearRect(0, 0, this.width, this.height);
@@ -678,21 +678,21 @@ export class AnkiFX {
                 dpr: this.dpr
             };
             this.currentEffectId = activeEffect;
-            
+
             // Apply effect-specific class to HTML for styling (e.g., afx-effect-none)
             const html = document.documentElement;
             Array.from(html.classList).forEach(c => {
                 if (c.startsWith('afx-effect-')) html.classList.remove(c);
             });
             html.classList.add(`afx-effect-${activeEffect}`);
-            
+
             // Apply effect-specific marquee styling
             if (this.marquee) {
                 this.marquee.updateStyles(effect.marqueeFont || {});
             }
 
             effect.run(sharedContexts, config);
-            
+
             // Respect toggle state on new effect start
             const marqueeEnabled = localStorage.getItem('ankifx_marquee_enabled') !== 'false';
             if (this.marquee) {
@@ -705,7 +705,7 @@ export class AnkiFX {
         overlay.classList.add('afx-agreed-state');
         document.documentElement.classList.add('afx-agreed');
         document.documentElement.classList.remove('afx-scroll-lock');
-        
+
         // Ensure the "qa" element is above the background
         const qa = document.getElementById("qa");
         if (qa) {
@@ -716,7 +716,7 @@ export class AnkiFX {
 
     static startMarqueeLoop() {
         if (this.marqueeInterval) return;
-        
+
         const tick = () => {
             if (this.marquee && this.ctxMarquee) {
                 this.ctxMarquee.clearRect(0, 0, this.width, this.height);
