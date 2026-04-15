@@ -55,7 +55,7 @@ html.afx-effect-none #afx-shared-2d {
 html,
 body {
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0;
     width: 100% !important;
     height: var(--tuner-height) !important;
     min-height: var(--tuner-height) !important;
@@ -67,7 +67,7 @@ body {
 
 .card {
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0;
     width: 100% !important;
     height: var(--tuner-height) !important;
     overflow: hidden !important;
@@ -83,7 +83,7 @@ body {
     width: 100% !important;
     height: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
 }
