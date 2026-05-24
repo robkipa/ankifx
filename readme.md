@@ -73,10 +73,27 @@ ankifx/
 
 The project uses `esbuild` to bundle multiple JavaScript modules and CSS into a single `_ankifx.js` file suitable for Anki's flat directory structure.
 
-### Running the Dev Environment
-1.  Run `npm install`.
-2.  Run `npm run watch` for a persistent build context that auto-rebuilds and refreshes the effect registry on save.
-3.  Open `build/deck_description.html` or `build/card_front.html` via a local server (e.g., VS Code Live Server).
+### Getting Started & Running the Dev Environment
+
+To edit visual effects, customize layouts, or compile the codebase locally, clone this repository:
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/robkipa/ankifx.git
+    cd ankifx
+    ```
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+3.  **Run the build/watch loop**:
+    ```bash
+    npm run watch
+    ```
+    *This starts a persistent esbuild context that auto-rebuilds the engine and refreshes the effects registry whenever you save a file.*
+4.  **Preview inside the Anki Simulator**:
+    Open `build/card_front_example.html` or `build/card_back_example.html` via a local server (e.g., VS Code's Live Server extension, or `npx serve build` in your terminal) to preview effects and debug in real-time.
+
 
 ### Build Pipeline Features:
 1.  **Auto-Registry**: Scans `src/effects/` and rebuilds `registry.js` automatically.
@@ -188,18 +205,21 @@ export const effect = {
 
 ---
 
-## 🤖 Rules for LLMs and AI Assistants (READ CAREFULLY)
+## 🤖 AI-Agent Ready (Vibe Coding)
 
-If you are an AI generating code for this project, you **must** adhere to these architectural constraints:
+This repository is built for seamless AI-assisted development ("vibe coding"). If you are an AI assistant (such as Cursor, Windsurf, or a custom agent) working in this codebase, you **must** parse and adhere to the unified boundaries and standards configured in [`.cursorrules`](.cursorrules) at the root of this project.
 
-1.  **Styling**: Do not add CSS directly to `engine.js` or the Anki card templates. All project styling must live in `src/core/afx_styles.css`.
-2.  **Registry Management**: Do not manually edit `src/effects/registry.js`. It is overwritten on every build/watch cycle by `build.js`.
-3.  **Effect Interface**: All background effects must export a `run(contexts, config)` function and a `stop()` function. Use the provided shared contexts (`gl`, `ctx2d`, `width`, `height`, `dpr`) instead of creating new canvases.
-4.  **Mobile Taps**: Ensure all injected UI elements call `e.stopPropagation()` on both `click` and `touchstart` events to prevent revealing card answers prematurely.
-5.  **Viewport Tuning**: Use the Viewport Tuner (`debug` effect) to verify layout correctness on mobile. Respect the `--tuner-height` CSS variable for all full-screen layout logic.
-6.  **Git Branching**: Always create a new feature branch (`feat/` or `fix/`) before starting work. Merge back to `main` only after verification.
+### Key AI Guardrails (Quick Summary)
+*   **Zero Inline CSS**: All styling must live in `src/core/afx_styles.css`.
+*   **Auto-Registry**: Do not edit `registry.js` manually; it is compiled via `build.js`.
+*   **Git Lifecycle**: Git branches are strictly isolated. All task branches must stem from `main` and use Conventional Commits.
+*   **Mobile Event Blocker**: Interactive controls must call `e.stopPropagation()` on both `click` and touch events to block premature card flips.
+
+Refer to [`.cursorrules`](.cursorrules) for full architectural interfaces and styling tokens.
+
 
 ---
+
 
 ## 🚀 Deployment to Anki
 
