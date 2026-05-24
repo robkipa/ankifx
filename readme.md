@@ -4,9 +4,12 @@
 
 ## 📖 Project Overview
 
-AnkiFX solves a fundamental frustration with Anki template design: **native cards are boring**, and the official mobile apps (AnkiMobile/AnkiDroid) do not support the powerful visual add-ons available on desktop. While JavaScript can add flair, editing complex scripts directly within Anki's card browser is cumbersome and error-prone.
+AnkiFX is a modular visual rendering and retro tracker-audio engine for Anki card templates.
 
-AnkiFX abstracts the entire visual layer into a standalone engine. Now, you can simply load the engine into any card type and enjoy a stunning, dynamic study environment. Your templates remain clean, merely loading a deck-specific **Configuration Payload** and the global **AnkiFX Engine**.
+Honestly, it started as a fun side project powered entirely by AI "vibe coding" (and burning through free Gemini credits) to see how far we could push modern WebGL, Canvas2D, and JS tracker-audio contexts inside a mobile-optimized Anki WebView. Originally built to cure the boredom of native templates and add some serious aesthetic flair to impress classmates, it turned out to be too fun not to share. 
+
+Now, the project is open to the public so anyone can inject stunning, high-performance background visualizers, retro keygen music, and interactive overlays directly into their Anki flashcards. Your templates remain completely clean, merely loading a deck-specific **Configuration Payload** and the global **AnkiFX Engine**.
+
 
 ### Core Features
 *   **Unified Canvas Architecture**: Uses a persistent, HDPi-compliant `WebGL` and `Canvas2D` context system. Background effects switch instantly without recreating the canvas or losing study focus.
