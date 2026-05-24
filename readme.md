@@ -223,8 +223,16 @@ Refer to [`.cursorrules`](.cursorrules) for full architectural interfaces and st
 
 ## 🚀 Deployment to Anki
 
+AnkiFX supports both **local media loading** and **remote CDN loading**. Since it's open-source, you are completely free to choose whichever method fits your distribution goals:
+
+*   **Local Loading (100% Offline-Ready)**: Keeps your deck completely offline-ready by placing all assets (`_ankifx.js` and configs) inside Anki's local `collection.media` folder.
+*   **Remote CDN Loading (Auto-Updates)**: Pulls the latest compiled engine directly from the jsDelivr CDN, ensuring your card templates automatically receive all future visualizer updates.
+*   *Note: The built templates (`build/card_front_example.html` and `build/card_back_example.html`) are pre-configured to use the remote CDN loader with a hybrid local fallback, ensuring resiliency even when users are offline.*
+
+### Step-by-Step Local Deployment
+
 1.  Run `npm run build`.
-2.  Copy `_ankifx.js` and your `_afx_[my_deck].js` config from `build/` to your Anki `collection.media` folder.
+2.  Copy `_ankifx.js` and your customized `_afx_[my_deck].js` config from `build/` to your Anki `collection.media` folder.
 3.  Ensure your card template loads the config **before** the engine, and utilizes a robust, race-safe loader with a DOM readiness trigger to prevent initialization timing errors on mobile devices:
     ```html
     <script src="_afx_my_deck.js" onerror="console.error('AnkiFX Error: Failed to load config script. Verify file is present in collection.media.')"></script>
