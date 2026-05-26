@@ -8,7 +8,7 @@ export class AnkiFX {
 
 
         // --- UNIFIED CONFIG MERGER ---
-        const config = {
+        const rawConfig = {
             deckTitle: "AnkiFX Deck",
             deckAuthor: "Anonymous",
             termsText: "No terms provided.",
@@ -21,6 +21,34 @@ export class AnkiFX {
             ...(window.AnkiFX_Config || {}),
             ...templateOptions
         };
+
+        // --- HARDEN CONFIG VALUES ---
+        let countdownVal = 30;
+        if (rawConfig.countdown !== undefined && rawConfig.countdown !== null) {
+            const parsed = parseInt(rawConfig.countdown, 10);
+            if (!isNaN(parsed)) {
+                countdownVal = Math.max(0, parsed);
+            }
+        }
+
+        const config = {
+            deckTitle: typeof rawConfig.deckTitle === 'string' ? rawConfig.deckTitle : "AnkiFX Deck",
+            deckAuthor: typeof rawConfig.deckAuthor === 'string' ? rawConfig.deckAuthor : "Anonymous",
+            termsText: typeof rawConfig.termsText === 'string' ? rawConfig.termsText : "No terms provided.",
+            sources: Array.isArray(rawConfig.sources) ? rawConfig.sources : [],
+            marquee: typeof rawConfig.marquee === 'string' ? rawConfig.marquee : "ANKIFX ENGINE INITIALIZED ...",
+            defaultEffect: typeof rawConfig.defaultEffect === 'string' ? rawConfig.defaultEffect : "geometry",
+            debug: !!rawConfig.debug,
+            countdown: countdownVal,
+            marqueePosition: rawConfig.marqueePosition === 'bottom' ? 'bottom' : 'top'
+        };
+
+        // Check if there's a configfile error / missing terms
+        config.isConfigFileError = !window.AnkiFX_Config || 
+                                   !window.AnkiFX_Config.termsText || 
+                                   typeof window.AnkiFX_Config.termsText !== 'string' || 
+                                   window.AnkiFX_Config.termsText.trim() === "" ||
+                                   config.termsText === "No terms provided.";
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -466,10 +494,10 @@ export class AnkiFX {
         const btn = document.getElementById('afx-consent-btn');
 
         if (hasTerms && btn) {
-            let countdown = config.countdown || 0;
+            let countdown = config.countdown;
 
-            // Skip countdown if debug mode is active
-            if (config.debug) countdown = 0;
+            // Skip countdown if debug mode is active or there is a configfile error
+            if (config.debug || config.isConfigFileError) countdown = 0;
 
             if (countdown > 0) {
 
