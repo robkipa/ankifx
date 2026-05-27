@@ -7,21 +7,26 @@
 
 <script src="_afx_example.js" onerror="console.error('AnkiFX Error: Failed to load config script _afx_example.js.')"></script>
 
-<!-- 🚀 REMOTE LOADING WITH HYBRID LOCAL FALLBACK -->
-<!-- Attempts to load the latest engine remotely via jsDelivr CDN -->
-<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js"></script>
-
 <script>
     // Fallback logic: If the CDN is offline or blocked, load the local collection.media copy
-    document.getElementById('ankifx-engine-script').addEventListener('error', function() {
+    function loadAnkiFXFallback() {
+        if (window.AnkiFX_FallbackLoaded) return;
+        window.AnkiFX_FallbackLoaded = true;
         console.warn("AnkiFX: Remote CDN offline or device offline. Falling back to local collection.media engine...");
         const fallbackScript = document.createElement('script');
         fallbackScript.src = "_ankifx.js"; // Local backup
-        fallbackScript.onerror = function() {
+        fallbackScript.onerror = function () {
             console.error("AnkiFX Critical: Both remote CDN and local fallback failed to load.");
         };
         document.head.appendChild(fallbackScript);
-    });
+    }
+</script>
+
+<!-- 🚀 REMOTE LOADING WITH HYBRID LOCAL FALLBACK -->
+<!-- Attempts to load the latest engine remotely via jsDelivr CDN -->
+<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onerror="loadAnkiFXFallback()"></script>
+
+<script>
 
     /**
      * AnkiFX Loader
