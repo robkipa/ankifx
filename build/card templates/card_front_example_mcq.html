@@ -14,24 +14,23 @@
         console.warn("AnkiFX: Remote CDN offline or device offline. Falling back to local collection.media engine...");
         const fallbackScript = document.createElement('script');
         fallbackScript.src = "_ankifx.js"; // Local backup
+        fallbackScript.onload = function () {
+            triggerAnkiFX();
+        };
         fallbackScript.onerror = function () {
             console.error("AnkiFX Critical: Both remote CDN and local fallback failed to load.");
         };
         document.head.appendChild(fallbackScript);
     }
-</script>
 
-<!-- 🚀 REMOTE LOADING WITH HYBRID LOCAL FALLBACK -->
-<!-- Attempts to load the latest engine remotely via jsDelivr CDN -->
-<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onerror="loadAnkiFXFallback()"></script>
-
-<script>
     /**
      * AnkiFX Loader
      * Simplified initialization to prevent race conditions and ensure DOM readiness.
      */
-    function triggerAnkiFX(attempts = 0) {
+    function triggerAnkiFX() {
+        if (window.AnkiFX_Initialized) return;
         if (typeof AnkiFX !== 'undefined' && typeof run === 'function') {
+            window.AnkiFX_Initialized = true;
             try {
                 AnkiFX.init();
                 run();
@@ -41,15 +40,13 @@
             } catch (e) {
                 console.error("AnkiFX Start Error:", e);
             }
-        } else if (attempts < 10) { // Poll for ~500ms
-            setTimeout(() => triggerAnkiFX(attempts + 1), 50);
-        } else {
-            console.error("AnkiFX Error: Loader timed out after 500ms. " +
-                "AnkiFX status: " + (typeof AnkiFX !== 'undefined' ? "Loaded" : "FAILED TO LOAD (_ankifx.js missing/corrupt?)") + ", " +
-                "Card Run Function status: " + (typeof run === 'function' ? "Defined" : "UNDEFINED") + ".");
         }
     }
 </script>
+
+<!-- 🚀 REMOTE LOADING WITH HYBRID LOCAL FALLBACK -->
+<!-- Attempts to load the latest engine remotely via jsDelivr CDN -->
+<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onload="triggerAnkiFX()" onerror="loadAnkiFXFallback()"></script>
 
 
 
