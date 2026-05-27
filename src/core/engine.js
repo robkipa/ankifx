@@ -138,16 +138,12 @@ export class AnkiFX {
 
         // Setup observer to auto-detect transition to non-AnkiFX cards
         if (!AnkiFX.observer) {
-            console.log("AnkiFX: Initializing MutationObserver for card transitions...");
             AnkiFX.observer = new MutationObserver(() => {
                 // Wait a microtask to let the DOM settle
                 setTimeout(() => {
                     const qa = document.getElementById('qa');
                     const hasAnkiFX = qa ? !!qa.querySelector('.ankifx-card') : false;
-                    
-                    console.log(`AnkiFX Observer triggered. hasAnkiFX: ${hasAnkiFX}`);
                     if (!hasAnkiFX) {
-                        console.warn("AnkiFX: Transition to non-AnkiFX card detected. Destroying engine...");
                         AnkiFX.destroy();
                     }
                 }, 20);
@@ -756,24 +752,19 @@ export class AnkiFX {
     }
 
     static destroy() {
-        console.warn("AnkiFX: destroy() called! Cleaning up all engine systems...");
-        
         // Stop current effect
         if (this.currentEffectId && EFFECTS[this.currentEffectId]?.stop) {
-            console.log(`AnkiFX: Stopping active effect: ${this.currentEffectId}`);
             EFFECTS[this.currentEffectId].stop();
         }
 
         // Stop jukebox
         if (this.jukebox) {
-            console.log("AnkiFX: Stopping Jukebox audio");
             this.jukebox.stop();
             this.jukebox = null;
         }
 
         // Stop marquee loop
         if (this.marqueeInterval) {
-            console.log("AnkiFX: Cancelling Marquee loop animation frame");
             cancelAnimationFrame(this.marqueeInterval);
             this.marqueeInterval = null;
         }
@@ -782,7 +773,6 @@ export class AnkiFX {
         }
 
         // Clean up DOM elements
-        console.log("AnkiFX: Removing overlay, background, tuner, and playback button DOM elements");
         ['ankifx-overlay', 'ankifx-background', 'afx-tuner-ui', 'afx-btn-back', 'afx-btn-skip'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.remove();
@@ -791,7 +781,6 @@ export class AnkiFX {
         // Clean up injected stylesheets
         const styleEl = document.getElementById('ankifx-styles');
         if (styleEl) {
-            console.log("AnkiFX: Removing injected stylesheet 'ankifx-styles'");
             styleEl.remove();
         }
 
@@ -804,7 +793,6 @@ export class AnkiFX {
         }
 
         // Clean up HTML/body classes
-        console.log("AnkiFX: Cleaning up CSS classes from document element");
         document.documentElement.classList.remove('afx-scroll-lock');
         document.documentElement.classList.remove('afx-agreed');
         Array.from(document.documentElement.classList).forEach(c => {
@@ -818,14 +806,9 @@ export class AnkiFX {
 
         // Disconnect observer
         if (this.observer) {
-            console.log("AnkiFX: Disconnecting MutationObserver");
             this.observer.disconnect();
             this.observer = null;
         }
-
-
-
-        console.warn("AnkiFX: Engine clean up complete.");
     }
 
     static startMarqueeLoop() {
