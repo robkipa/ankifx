@@ -8,10 +8,14 @@
 <script src="_afx_example.js" onerror="console.error('AnkiFX Error: Failed to load config script _afx_example.js.')"></script>
 
 <script>
+    // Closure-scoped flags to prevent duplicate execution within the same card's lifecycle
+    var fallbackLoaded = false;
+    var cardInitialized = false;
+
     // Fallback logic: If the CDN is offline or blocked, load the local collection.media copy
     function loadAnkiFXFallback() {
-        if (window.AnkiFX_FallbackLoaded) return;
-        window.AnkiFX_FallbackLoaded = true;
+        if (fallbackLoaded) return;
+        fallbackLoaded = true;
         console.warn("AnkiFX: Remote CDN offline or device offline. Falling back to local collection.media engine...");
         const fallbackScript = document.createElement('script');
         fallbackScript.src = "_ankifx.js"; // Local backup
@@ -29,9 +33,9 @@
      * Simplified initialization to prevent race conditions and ensure DOM readiness.
      */
     function triggerAnkiFX() {
-        if (window.AnkiFX_Initialized) return;
+        if (cardInitialized) return;
         if (typeof AnkiFX !== 'undefined') {
-            window.AnkiFX_Initialized = true;
+            cardInitialized = true;
             try {
                 AnkiFX.init();
             } catch (e) {
