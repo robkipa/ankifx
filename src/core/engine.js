@@ -139,7 +139,11 @@ export class AnkiFX {
             this.observer = new MutationObserver(() => {
                 // Wait a microtask to let the new card's scripts parse
                 setTimeout(() => {
-                    if (!document.getElementById('ankifx-engine-script') && !document.getElementById('ankifx-overlay')) {
+                    const hasAnkiFX = Array.from(document.getElementsByTagName('script')).some(s => {
+                        const src = s.getAttribute('src') || '';
+                        return src.includes('_ankifx') || src.includes('_afx_');
+                    });
+                    if (!hasAnkiFX) {
                         this.destroy();
                     }
                 }, 20);
