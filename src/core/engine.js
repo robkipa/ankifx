@@ -4,16 +4,36 @@ import { Jukebox } from './jukebox.js';
 import styles from './afx_styles.css';
 
 export class AnkiFX {
-    static getCleanFootprint(qa) {
-        if (!qa) return { text: '', html: '' };
-        const clone = qa.cloneNode(true);
-        const scripts = Array.from(clone.getElementsByTagName('script'));
-        scripts.forEach(s => s.remove());
-        const styles = Array.from(clone.getElementsByTagName('style'));
-        styles.forEach(s => s.remove());
-        const text = clone.innerText ? clone.innerText.trim() : '';
-        const html = clone.innerHTML ? clone.innerHTML.trim() : '';
-        return { text, html };
+    static getStableQuestionText(qa) {
+        if (!qa) return '';
+        const elements = qa.querySelectorAll('p, h1, h2, h3, h4, h5, h6, td, th, li');
+        let bestText = '';
+        for (const el of elements) {
+            if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
+            if (el.closest('.hidden') || el.classList.contains('hidden') || el.closest('[hidden]') || el.hasAttribute('hidden')) {
+                continue;
+            }
+            const txt = el.innerText ? el.innerText.trim() : '';
+            if (txt.length > bestText.length && txt.length < 1500) {
+                bestText = txt;
+            }
+        }
+        if (bestText.length < 5) {
+            const divs = qa.querySelectorAll('div, span');
+            for (const el of divs) {
+                if (el.closest('.hidden') || el.classList.contains('hidden') || el.closest('[hidden]') || el.hasAttribute('hidden')) {
+                    continue;
+                }
+                const txt = el.innerText ? el.innerText.trim() : '';
+                if (txt.length > bestText.length && txt.length < 1500) {
+                    bestText = txt;
+                }
+            }
+        }
+        if (bestText.length < 5) {
+            bestText = qa.innerText ? qa.innerText.trim() : '';
+        }
+        return bestText.replace(/\s+/g, ' ').trim().substring(0, 120);
     }
 
     static init(templateOptions = {}) {
@@ -75,12 +95,10 @@ export class AnkiFX {
 
         // Capture footprint of Front card
         const qaElement = document.getElementById('qa');
-        const footprint = AnkiFX.getCleanFootprint(qaElement);
-        AnkiFX.savedFrontText = footprint.text;
-        AnkiFX.savedFrontHtml = footprint.html;
+        AnkiFX.savedFrontText = AnkiFX.getStableQuestionText(qaElement);
         console.log("AnkiFX: Saved Front Card Footprint:", { 
-            textLength: AnkiFX.savedFrontText.length, 
-            htmlLength: AnkiFX.savedFrontHtml.length 
+            textLength: AnkiFX.savedFrontText.length,
+            text: AnkiFX.savedFrontText
         });
 
         // New session / First launch: Clear old UI and reset agreed state
@@ -169,26 +187,16 @@ export class AnkiFX {
                         return src.includes('_ankifx') || src.includes('_afx_');
                     });
                     
-                    const footprint = AnkiFX.getCleanFootprint(qa);
-                    const currentText = footprint.text;
-                    const currentHtml = footprint.html;
+                    const currentText = qa ? (qa.innerText ? qa.innerText.replace(/\s+/g, ' ').trim() : '') : '';
 
                     let matchesText = false;
-                    let matchesHtml = false;
-
                     if (AnkiFX.savedFrontText && AnkiFX.savedFrontText.length > 3) {
                         matchesText = currentText.includes(AnkiFX.savedFrontText);
                     }
-                    if (AnkiFX.savedFrontHtml && AnkiFX.savedFrontHtml.length > 5) {
-                        matchesHtml = currentHtml.includes(AnkiFX.savedFrontHtml);
-                    }
 
-                    const hasSavedFootprint = (AnkiFX.savedFrontText && AnkiFX.savedFrontText.length > 3) || 
-                                               (AnkiFX.savedFrontHtml && AnkiFX.savedFrontHtml.length > 5);
-
-                    const isNewCard = hasSavedFootprint ? (!matchesText && !matchesHtml) : true;
+                    const isNewCard = AnkiFX.savedFrontText && AnkiFX.savedFrontText.length > 3 ? !matchesText : true;
                     
-                    console.log(`AnkiFX Observer triggered. Found ${scripts.length} scripts in #qa. hasAnkiFX: ${hasAnkiFX}, isNewCard: ${isNewCard}, matchesText: ${matchesText}, matchesHtml: ${matchesHtml}`);
+                    console.log(`AnkiFX Observer triggered. Found ${scripts.length} scripts in #qa. hasAnkiFX: ${hasAnkiFX}, isNewCard: ${isNewCard}, matchesText: ${matchesText}`);
                     if (isNewCard && !hasAnkiFX) {
                         console.warn("AnkiFX: Transition to non-AnkiFX card detected. Destroying engine...");
                         AnkiFX.destroy();
@@ -853,7 +861,6 @@ export class AnkiFX {
 
         // Clear footprint variables
         AnkiFX.savedFrontText = '';
-        AnkiFX.savedFrontHtml = '';
 
         console.warn("AnkiFX: Engine clean up complete.");
     }
@@ -889,5 +896,4 @@ AnkiFX.marqueeInterval = null;
 AnkiFX._layoutHandler = null;
 AnkiFX.observer = null;
 AnkiFX.savedFrontText = '';
-AnkiFX.savedFrontHtml = '';
 
