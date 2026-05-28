@@ -6,9 +6,15 @@
 </script>
 
 <script src="_afx_example.js" onerror="console.error('AnkiFX Error: Failed to load config script _afx_example.js. Ensure the file is present in your Anki collection.media folder.')"></script>
+
+<!-- Load the local offline engine backup first (static load is 100% mobile-resilient and CORS-safe) -->
+<script src="_ankifx.js" onerror="console.warn('AnkiFX: Local engine backup not found in collection.media.')"></script>
+
+<!-- Load the latest remote engine CDN (parsed sequentially, overrides local global if online) -->
+<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onerror="console.warn('AnkiFX: CDN failed to load, using local engine.')"></script>
+
 <script>
     // Closure-scoped flags to prevent duplicate execution within the same card's lifecycle
-    var fallbackLoaded = false;
     var contentInitialized = false;
     var ankiFXInitialized = false;
 
@@ -23,42 +29,6 @@
             };
             document.head.appendChild(erudaScript);
         }
-    }
-
-    // Fallback logic: If the CDN is offline or blocked, load the local collection.media copy via text fetch (bypass iOS WebView sandbox)
-    function loadAnkiFXFallback() {
-        if (fallbackLoaded) return;
-        fallbackLoaded = true;
-        console.warn("AnkiFX: Remote CDN offline or device offline. Falling back to local collection.media engine...");
-
-        // Try fetching first (highly reliable on mobile webviews)
-        fetch("_ankifx.js")
-            .then(function(response) {
-                if (!response.ok) throw new Error("Local file not found");
-                return response.text();
-            })
-            .then(function(code) {
-                const script = document.createElement('script');
-                script.textContent = code; // Inject as inline script to bypass WKWebView path sandboxing
-                document.head.appendChild(script);
-                triggerAnkiFX();
-            })
-            .catch(function(err) {
-                // If fetch fails (e.g. CORS block under file:// in desktop browsers), fall back to standard script tag insertion
-                console.warn("Fetch fallback failed (possibly browser CORS), trying standard script insertion...", err);
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = "_ankifx.js";
-                fallbackScript.onload = function () {
-                    triggerAnkiFX();
-                };
-                fallbackScript.onerror = function () {
-                    console.error("AnkiFX Critical: Both remote CDN and local fallback failed to load.");
-                    // Even if both fail, run the card content so the student can study!
-                    triggerAnkiFX();
-                };
-                const container = document.getElementById('qa') || document.head;
-                container.appendChild(fallbackScript);
-            });
     }
 
     /**
@@ -91,10 +61,6 @@
         }
     }
 </script>
-
-<!-- 🚀 REMOTE LOADING WITH HYBRID LOCAL FALLBACK -->
-<!-- Attempts to load the latest engine remotely via jsDelivr CDN -->
-<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onload="triggerAnkiFX()" onerror="loadAnkiFXFallback()"></script>
 
 
 
