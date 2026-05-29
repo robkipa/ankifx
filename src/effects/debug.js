@@ -1,26 +1,8 @@
 
 let animationId = null;
 let currentW, currentH;
-let erudaCaptureListener = null;
-const captureEvents = ['touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'];
-
-function isErudaEvent(e) {
-    if (!e) return false;
-    const path = e.composedPath ? e.composedPath() : [];
-    for (let i = 0; i < path.length; i++) {
-        const target = path[i];
-        if (!target) continue;
-        if (target.id === 'ankifx-eruda-container') return true;
-        if (target.tagName === 'ERUDA') return true;
-        if (typeof target.className === 'string' && target.className.includes('eruda')) return true;
-        if (target.classList && typeof target.classList.contains === 'function') {
-            if (target.classList.contains('eruda-entry-btn') || target.classList.contains('eruda-container')) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
+let erudaContainerListener = null;
+const blockedEvents = ['touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'];
 
 export const effect = {
     id: 'debug',
@@ -62,18 +44,16 @@ export function runDebug(contexts, config) {
             erudaContainer.style.display = 'block';
         }
 
-        // Capture-phase document listener: fires BEFORE any other handler,
-        // catches Eruda events and prevents them from reaching the overlay
-        // or Anki's card flip handler
-        if (!erudaCaptureListener) {
-            erudaCaptureListener = (e) => {
-                if (isErudaEvent(e)) {
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                }
+        // Bubble-phase listener on the CONTAINER itself.
+        // Events from Eruda's shadow DOM fire Eruda's handlers first,
+        // then bubble up to this container where we stop them from
+        // reaching body/document (Anki card flip).
+        if (!erudaContainerListener) {
+            erudaContainerListener = (e) => {
+                e.stopPropagation();
             };
-            captureEvents.forEach(evtName => {
-                document.addEventListener(evtName, erudaCaptureListener, { capture: true, passive: false });
+            blockedEvents.forEach(evtName => {
+                erudaContainer.addEventListener(evtName, erudaContainerListener, { capture: false, passive: false });
             });
         }
 
@@ -88,23 +68,6 @@ export function runDebug(contexts, config) {
                         });
                         window.__ERUDA_INITIALIZED__ = true;
                         window.eruda.position({ x: 20, y: 20 });
-
-                        // Force pointer-events on Eruda's shadow DOM entry button
-                        // so taps reach it despite the container being pointer-events: none
-                        try {
-                            const shadowRoot = erudaContainer.querySelector('eruda')?.shadowRoot
-                                || erudaContainer.shadowRoot;
-                            if (shadowRoot) {
-                                const style = document.createElement('style');
-                                style.textContent = `
-                                    .eruda-entry-btn { pointer-events: auto !important; touch-action: manipulation !important; }
-                                    .eruda-container { pointer-events: auto !important; }
-                                `;
-                                shadowRoot.appendChild(style);
-                            }
-                        } catch (styleErr) {
-                            console.warn("Eruda: Could not inject pointer-events override:", styleErr);
-                        }
 
                         // Flush all pre-load logs into the Eruda console panel
                         if (window.AnkiFX_Loader_Logs && !window.__ERUDA_LOGS_FLUSHED__) {
@@ -130,6 +93,7 @@ export function runDebug(contexts, config) {
             initEruda();
         }
     }
+
 
     function render() {
         ctx.fillStyle = '#000';
@@ -235,10 +199,13 @@ export function stopDebug() {
     if (erudaContainer) {
         erudaContainer.style.display = 'none';
     }
-    if (erudaCaptureListener) {
-        captureEvents.forEach(evtName => {
-            document.removeEventListener(evtName, erudaCaptureListener, { capture: true });
-        });
-        erudaCaptureListener = null;
+    if (erudaContainerListener) {
+        const erudaContainer = document.getElementById('ankifx-eruda-container');
+        if (erudaContainer) {
+            blockedEvents.forEach(evtName => {
+                erudaContainer.removeEventListener(evtName, erudaContainerListener, { capture: false });
+            });
+        }
+        erudaContainerListener = null;
     }
 }

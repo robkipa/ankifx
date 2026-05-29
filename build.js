@@ -96,6 +96,12 @@ async function runBuild() {
         outfile: 'build/_ankifx.js',
         format: 'iife',
         loader: { '.css': 'text' },
+        // Capture document.currentScript OUTSIDE the IIFE, before any module code.
+        // This is the only reliable way on iOS WKWebView where document.currentScript
+        // becomes null by the time esbuild's hoisted import code finishes running.
+        banner: {
+            js: 'var __ankifx_script_src=(document.currentScript&&document.currentScript.src)||"";'
+        },
         define: {
             'process.env.ANKIFX_VERSION': JSON.stringify(versionString),
             'process.env.BUILD_DATE': JSON.stringify(new Date().toLocaleString())
