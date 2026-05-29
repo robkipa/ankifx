@@ -211,52 +211,130 @@ Refer to [`.cursorrules`](.cursorrules) for full architectural interfaces and st
 
 ## 🚀 Deployment to Anki
 
-AnkiFX supports both **local media loading** and **remote CDN loading**. Since it's open-source, you are completely free to choose whichever method fits your distribution goals:
+AnkiFX supports both **local media loading** and **remote CDN loading**. We highly recommend using the **Resilient Hybrid Deployment** model. It loads the local engine backup first to ensure offline capability, but overrides it with the remote CDN version if online—always giving priority to the latest remote code updates.
 
-*   **Local Loading (100% Offline-Ready)**: Keeps your deck completely offline-ready by placing all assets (`_ankifx.js` and configs) inside Anki's local `collection.media` folder.
-*   **Remote CDN Loading (Auto-Updates)**: Pulls the latest compiled engine directly from the jsDelivr CDN, ensuring your card templates automatically receive all future visualizer updates.
-*   *Note: The built templates (`build/card_front_example.html` and `build/card_back_example.html`) are pre-configured to use the remote CDN loader with a hybrid local fallback, ensuring resiliency even when users are offline.*
+The engine's secure assignment logic protects the global `window.AnkiFX` reference. Even if the local script executes with a delay (due to native iOS/WKWebView custom-protocol file latency on AnkiMobile), the engine detects that a remote version is already active and safely declines to overwrite it.
 
-### Step-by-Step Local Deployment
+### Step-by-Step Hybrid Deployment (Recommended)
 
-1.  Run `npm run build`.
-2.  Copy `_ankifx.js` and your customized `_afx_[my_deck].js` config from `build/` to your Anki `collection.media` folder.
-3.  Ensure your card template loads the config **before** the engine, and utilizes a robust, race-safe loader with a DOM readiness trigger to prevent initialization timing errors on mobile devices:
-    ```html
-    <script src="_afx_my_deck.js" onerror="console.error('AnkiFX Error: Failed to load config script. Verify file is present in collection.media.')"></script>
-    <script src="_ankifx.js" onerror="console.error('AnkiFX Error: Failed to load main engine. Verify file is present in collection.media.')"></script>
-    <script>
-        /**
-         * Robust AnkiFX Loader & Trigger
-         * Prevents mobile race conditions, polls for engine readiness, and manages DOM execution boundaries.
-         */
-        function triggerAnkiFX(attempts = 0) {
-            if (typeof AnkiFX !== 'undefined') {
-                try {
-                    // Initialize the engine (preferences like debug & countdown are loaded automatically from configs)
-                    AnkiFX.init();
-                    
-                    // Trigger your custom card question generators or logic here (if any):
-                    if (typeof run === 'function') run();
-                } catch (e) {
-                    console.error("AnkiFX Start Error:", e);
-                }
-            } else if (attempts < 50) { // Poll for up to 2.5 seconds to account for mobile async file delays
-                setTimeout(() => triggerAnkiFX(attempts + 1), 50);
+1. Run `npm run build`.
+2. Copy `_ankifx.js` and your customized `_afx_[my_deck].js` config from the `build/` directory to your Anki `collection.media` folder.
+3. Paste the following robust loader script into your Anki Card Front Template:
+
+```html
+<!-- Load your customized deck configuration first -->
+<script src="_afx_my_deck.js" onerror="console.error('AnkiFX Error: Failed to load config script. Verify file is present in collection.media.')"></script>
+
+<!-- Load the local offline engine backup (static load is CORS-safe and offline-resilient) -->
+<script src="_ankifx.js" onerror="console.warn('AnkiFX: Local engine backup not found in collection.media.')"></script>
+
+<!-- Load the latest remote engine CDN (parsed sequentially, overrides local global if online) -->
+<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onerror="console.warn('AnkiFX: CDN failed to load, using local engine.')"></script>
+
+<script>
+    (function() {
+        window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
+        var remoteScript = document.getElementById('ankifx-engine-script');
+        if (remoteScript) {
+            if (window.AnkiFX && window.AnkiFX.source === 'remote') {
+                window.AnkiFX_Remote_Status = "loaded";
+                window.AnkiFX_Loader_Logs.push("Remote engine script loaded (sync).");
             } else {
-                console.error("AnkiFX Error: Loader timed out. _ankifx.js is missing or corrupt.");
+                window.AnkiFX_Remote_Status = "pending";
+                window.AnkiFX_Loader_Logs.push("Remote engine script pending...");
+                remoteScript.addEventListener('load', function() {
+                    window.AnkiFX_Remote_Status = "loaded";
+                    window.AnkiFX_Loader_Logs.push("Remote engine script onload fired (async).");
+                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
+                });
+                remoteScript.addEventListener('error', function() {
+                    window.AnkiFX_Remote_Status = "failed";
+                    window.AnkiFX_Loader_Logs.push("Remote engine script onerror fired (async).");
+                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
+                });
             }
         }
+    })();
+</script>
 
-        // --- FINAL EXECUTION TRIGGER ---
-        // Runs immediately if DOM is already parsed; otherwise listens for readiness
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            triggerAnkiFX();
-        } else {
-            document.addEventListener('DOMContentLoaded', triggerAnkiFX);
+<script>
+    // Closure-scoped flags to prevent duplicate execution within the same card's lifecycle
+    var contentInitialized = false;
+    var ankiFXInitialized = false;
+
+    /**
+     * Resilient Polling AnkiFX Loader
+     * Periodically polls for ready dependencies to bypass asynchronous WKWebView execution lags.
+     * Prefers the remote CDN engine over the local engine, checking status up to 800ms.
+     */
+    function triggerAnkiFX(attempts = 0) {
+        window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
+        if (attempts === 0) {
+            window.AnkiFX_Loader_Logs.push("triggerAnkiFX called.");
         }
-    </script>
-    ```
+
+        const remoteScriptExists = !!document.getElementById('ankifx-engine-script');
+        const remoteStatus = window.AnkiFX_Remote_Status || (remoteScriptExists ? "pending" : "none");
+
+        const hasAnkiFX = typeof AnkiFX !== 'undefined';
+        const hasRun = typeof run === 'function';
+
+        if (hasAnkiFX && hasRun) {
+            // Wait for remote engine to finish loading or fail (up to 800ms)
+            const isWaitingForRemote = (remoteStatus === "pending") && (attempts < 16);
+            if (isWaitingForRemote) {
+                if (attempts % 5 === 0) {
+                    window.AnkiFX_Loader_Logs.push("Waiting for remote script (Attempt " + attempts + ", status=" + remoteStatus + ")...");
+                }
+                setTimeout(() => triggerAnkiFX(attempts + 1), 50);
+                return;
+            }
+            
+            // 1. First initialize AnkiFX if it is loaded
+            if (!ankiFXInitialized) {
+                try {
+                    window.AnkiFX_Loader_Logs.push("Initializing AnkiFX engine (Source: " + (AnkiFX.source || 'local') + ", Version: " + (AnkiFX.version || '1.0.0') + ")...");
+                    ankiFXInitialized = true;
+                    AnkiFX.init();
+                    window.AnkiFX_Loader_Logs.push("AnkiFX.init() success.");
+                } catch (e) {
+                    window.AnkiFX_Loader_Logs.push("AnkiFX init error: " + e.message);
+                    console.error("AnkiFX Start Error:", e);
+                }
+            }
+
+            // 2. Then run the card's native content/table generator
+            if (!contentInitialized) {
+                try {
+                    window.AnkiFX_Loader_Logs.push("Running card content run()...");
+                    contentInitialized = true;
+                    run();
+                    window.AnkiFX_Loader_Logs.push("Card content run() success.");
+                } catch (e) {
+                    window.AnkiFX_Loader_Logs.push("Card content error: " + e.message);
+                    console.error("Card Content Run Error:", e);
+                }
+            }
+        } else if (attempts < 60) { // Poll for ~3 seconds
+            if (attempts % 10 === 0) {
+                window.AnkiFX_Loader_Logs.push("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ")...");
+            }
+            setTimeout(() => triggerAnkiFX(attempts + 1), 50);
+        } else {
+            const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED");
+            window.AnkiFX_Loader_Logs.push(err);
+            console.error(err);
+        }
+    }
+
+    // --- FINAL EXECUTION TRIGGER ---
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        triggerAnkiFX();
+    } else {
+        document.addEventListener('DOMContentLoaded', triggerAnkiFX);
+    }
+</script>
+```
 
 ### 📦 Packaging Assets for Deck Distribution (`.apkg`)
 

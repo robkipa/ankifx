@@ -1,8 +1,7 @@
 
 let animationId = null;
 let currentW, currentH;
-let erudaContainerListener = null;
-const blockedEvents = ['touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'];
+
 
 export const effect = {
     id: 'debug',
@@ -25,74 +24,7 @@ export function runDebug(contexts, config) {
     currentW = contexts.width;
     currentH = contexts.height;
 
-    // Load/show Eruda on mobile inside the DEBUG effect
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
-        let erudaContainer = document.getElementById('ankifx-eruda-container');
-        if (!erudaContainer) {
-            erudaContainer = document.createElement('div');
-            erudaContainer.id = 'ankifx-eruda-container';
-            erudaContainer.style.position = 'fixed';
-            erudaContainer.style.zIndex = '2147483647';
-            erudaContainer.style.top = '0';
-            erudaContainer.style.left = '0';
-            erudaContainer.style.width = '100%';
-            erudaContainer.style.height = '100%';
-            erudaContainer.style.pointerEvents = 'none';
-            document.body.appendChild(erudaContainer);
-        } else {
-            erudaContainer.style.display = 'block';
-        }
 
-        // Bubble-phase listener on the CONTAINER itself.
-        // Events from Eruda's shadow DOM fire Eruda's handlers first,
-        // then bubble up to this container where we stop them from
-        // reaching body/document (Anki card flip).
-        if (!erudaContainerListener) {
-            erudaContainerListener = (e) => {
-                e.stopPropagation();
-            };
-            blockedEvents.forEach(evtName => {
-                erudaContainer.addEventListener(evtName, erudaContainerListener, { capture: false, passive: false });
-            });
-        }
-
-        const initEruda = () => {
-            if (window.eruda) {
-                try {
-                    const isInitialized = window.eruda._isInit || window.__ERUDA_INITIALIZED__;
-                    if (!isInitialized) {
-                        window.eruda.init({
-                            container: erudaContainer,
-                            useShadowDom: true
-                        });
-                        window.__ERUDA_INITIALIZED__ = true;
-                        window.eruda.position({ x: 20, y: 20 });
-
-                        // Flush all pre-load logs into the Eruda console panel
-                        if (window.AnkiFX_Loader_Logs && !window.__ERUDA_LOGS_FLUSHED__) {
-                            window.__ERUDA_LOGS_FLUSHED__ = true;
-                            window.AnkiFX_Loader_Logs.forEach(log => {
-                                console.log("[Pre-load] " + log);
-                            });
-                        }
-                    }
-                    window.eruda.show();
-                } catch (e) {
-                    console.error("Eruda init error:", e);
-                }
-            }
-        };
-
-        if (!window.eruda) {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/eruda';
-            script.onload = initEruda;
-            document.head.appendChild(script);
-        } else {
-            initEruda();
-        }
-    }
 
 
     function render() {
@@ -100,15 +32,7 @@ export function runDebug(contexts, config) {
         ctx.fillRect(0, 0, currentW, currentH);
 
 
-        // Current Crosshair (Center)
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(currentW / 2, 0); ctx.lineTo(currentW / 2, currentH);
-        ctx.moveTo(0, currentH / 2); ctx.lineTo(currentW, currentH / 2);
-        ctx.stroke();
-        ctx.fillStyle = '#0ff';
-        ctx.fillText(`CENTER: ${Math.floor(currentW/2)},${Math.floor(currentH/2)}`, currentW/2 + 5, currentH/2 - 5);
+
 
         // Draw Viewport Info
         ctx.fillStyle = '#fff';
@@ -209,21 +133,5 @@ export function stopDebug() {
     if (animationId) {
         cancelAnimationFrame(animationId);
         animationId = null;
-    }
-    if (window.eruda) {
-        try { window.eruda.hide(); } catch(e) {}
-    }
-    const erudaContainer = document.getElementById('ankifx-eruda-container');
-    if (erudaContainer) {
-        erudaContainer.style.display = 'none';
-    }
-    if (erudaContainerListener) {
-        const erudaContainer = document.getElementById('ankifx-eruda-container');
-        if (erudaContainer) {
-            blockedEvents.forEach(evtName => {
-                erudaContainer.removeEventListener(evtName, erudaContainerListener, { capture: false });
-            });
-        }
-        erudaContainerListener = null;
     }
 }
