@@ -24,7 +24,7 @@ Now, the project is open to the public so anyone can inject stunning, high-perfo
     *   *Mandelbrot*: Zooming progressive fractal with tuning parameters.
     *   *Matrix*: Cyberpunk digital rain.
     *   *None*: A nightmode-aware, battery-efficient fallback.
-    *   *Plasma*: Animated wave interference patterns.
+    *   *Lava Lamp*: Highly responsive and satisfying WebGL fluid simulation.
     *   *Starfield*: Multi-layer parallax star field.
     *   *Tetris*: Fully functional background Tetris simulation.
     *   *Debug*: Diagnostic effect for viewport calibration.
@@ -145,7 +145,7 @@ window.AnkiFX_Config = {
     // Scrolling text at the top/bottom of your screens
     marquee: "GREETINGS FROM ANKIFX ... A MODULAR VISUAL ENGINE FOR ANKI ... TRY SWITCHING EFFECTS IN THE BOTTOM RIGHT ...",
 
-    // Default visualizer on boot (e.g. geometry, fire, aurora, julia, none)
+    // Default visualizer on boot (e.g. geometry, fire, aurora, julia, lavalamp, none)
     defaultEffect: "geometry",
 
     // --- OPTIONAL PREFERENCES ---

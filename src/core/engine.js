@@ -95,6 +95,16 @@ export class AnkiFX {
             activeEffect = localStorage.getItem('ankifx_preferred_effect') || config.defaultEffect || 'geometry';
         }
 
+        // --- HARDEN AGAINST STALE/INVALID EFFECTS (e.g. renamed 'plasma' to 'lavalamp') ---
+        if (!EFFECTS[activeEffect]) {
+            console.warn(`AnkiFX: Stale or invalid activeEffect "${activeEffect}" detected. Falling back to default.`);
+            activeEffect = config.defaultEffect || 'geometry';
+            if (!EFFECTS[activeEffect]) {
+                activeEffect = Object.keys(EFFECTS)[0] || 'geometry';
+            }
+            localStorage.setItem('ankifx_preferred_effect', activeEffect);
+        }
+
         // Pass isMobile and config down to the UI injector
         const { overlay, background } = this.injectUI(config, isMobile, activeEffect);
 
