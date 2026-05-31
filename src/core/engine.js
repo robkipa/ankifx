@@ -348,6 +348,14 @@ export class AnkiFX {
             </div>
         `;
 
+        let gradientRandomizerHtml = `
+            <div id="afx-gradient-randomizer-container" class="afx-control-row afx-effect-selector-container" style="padding: 0; display: ${activeEffect === 'gradient' ? 'flex' : 'none'}; border: 1px solid rgba(255, 255, 255, 0.15);">
+                <button id="afx-gradient-randomize-btn" style="background: transparent; color: #fff; border: none; width: 100%; height: 100%; cursor: pointer; text-transform: uppercase; font-family: 'Courier New', Courier, monospace !important; font-size: var(--afx-picker-font-size) !important; font-weight: bold !important; padding: 0 15px; display: flex; align-items: center; justify-content: center;">
+                    🎨 RANDOMIZE
+                </button>
+            </div>
+        `;
+
         let effectSelectorHtml = `
             <div id="afx-effect-selector-container" class="afx-control-row afx-effect-selector-container" style="padding: 0;">
                 <select id="afx-effect-selector">
@@ -370,6 +378,7 @@ export class AnkiFX {
         let pickerStackHtml = `
             <div id="afx-controls-stack-right" class="afx-controls-stack">
                 ${juliaSelectorHtml}
+                ${gradientRandomizerHtml}
                 ${clearStorageHtml}
                 ${effectSelectorHtml}
             </div>
@@ -616,6 +625,11 @@ export class AnkiFX {
                     juliaSelectorContainer.style.display = newEffect === 'julia' ? 'flex' : 'none';
                 }
 
+                const gradientRandomizerContainer = document.getElementById('afx-gradient-randomizer-container');
+                if (gradientRandomizerContainer) {
+                    gradientRandomizerContainer.style.display = newEffect === 'gradient' ? 'flex' : 'none';
+                }
+
                 const clearStorageContainer = document.getElementById('afx-clear-storage-container');
                 if (clearStorageContainer) {
                     clearStorageContainer.style.display = newEffect === 'debug' ? 'flex' : 'none';
@@ -669,6 +683,18 @@ export class AnkiFX {
                     AnkiFX.startEffect(config, background, config.marqueePosition, 'julia');
                 }
 
+            });
+        }
+
+        // Gradient Randomizer Button Binding
+        const gradientRandomizeBtn = document.getElementById('afx-gradient-randomize-btn');
+        if (gradientRandomizeBtn) {
+            gradientRandomizeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gradEffect = EFFECTS['gradient'];
+                if (gradEffect && typeof gradEffect.randomizeColors === 'function') {
+                    gradEffect.randomizeColors();
+                }
             });
         }
 

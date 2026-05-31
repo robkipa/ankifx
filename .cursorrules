@@ -11,7 +11,7 @@ NEVER commit directly to `main`. Every task must follow this lifecycle:
 1.  **Check Current State**: Run `git status` and ensure you are starting from a clean `main` branch.
 2.  **Create Function-Specific Branch**: Create a new branch named `feat/[feature-name]` or `fix/[fix-name]`.
 3.  **Incremental Commits**: Commit changes frequently with descriptive, **Conventional Commit** messages (e.g., `feat: implemented fractal zoom oscillation`).
-4.  **Verification**: Verify all changes (builds, tests, or manual UI checks) BEFORE merging.
+4.  **Verification & Documentation**: Verify all changes (builds, tests, or manual UI checks) and **always check if project documentation (like readme.md, workflows, or standards) needs updating** BEFORE merging.
 5.  **Merge & Cleanup**: Merge the feature branch into `main` and delete the feature branch once the task is complete and verified.
 
 ## 3. Conventional Commits
