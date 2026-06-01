@@ -5,7 +5,34 @@
     if(void 0===window.Persistence){var e="github.com/SimonLammer/anki-persistence/",t="_default";if(window.Persistence_sessionStorage=function(){var i=!1;try{"object"==typeof window.sessionStorage&&(i=!0,this.clear=function(){for(var t=0;t<sessionStorage.length;t++){var i=sessionStorage.key(t);0==i.indexOf(e)&&(sessionStorage.removeItem(i),t--)}},this.setItem=function(i,n){void 0==n&&(n=i,i=t),sessionStorage.setItem(e+i,JSON.stringify(n))},this.getItem=function(i){return void 0==i&&(i=t),JSON.parse(sessionStorage.getItem(e+i))},this.removeItem=function(i){void 0==i&&(i=t),sessionStorage.removeItem(e+i)},this.getAllKeys=function(){for(var t=[],i=Object.keys(sessionStorage),n=0;n<i.length;n++){var s=i[n];0==s.indexOf(e)&&t.push(s.substring(e.length,s.length))}return t.sort()})}catch(n){}this.isAvailable=function(){return i}},window.Persistence_windowKey=function(i){var n=window[i],s=!1;"object"==typeof n&&(s=!0,this.clear=function(){n[e]={}},this.setItem=function(i,s){void 0==s&&(s=i,i=t),n[e][i]=s},this.getItem=function(i){return void 0==i&&(i=t),void 0==n[e][i]?null:n[e][i]},this.removeItem=function(i){void 0==i&&(i=t),delete n[e][i]},this.getAllKeys=function(){return Object.keys(n[e])},void 0==n[e]&&this.clear()),this.isAvailable=function(){return s}},window.Persistence=new Persistence_sessionStorage,Persistence.isAvailable()||(window.Persistence=new Persistence_windowKey("py")),!Persistence.isAvailable()){var i=window.location.toString().indexOf("title"),n=window.location.toString().indexOf("main",i);i>0&&n>0&&n-i<10&&(window.Persistence=new Persistence_windowKey("qt"))}}
 </script>
 
-<script src="_afx_example.js" onerror="console.error('AnkiFX Error: Failed to load config script _afx_example.js.')"></script>
+<div id="afx-config-field" style="display: none !important;">{{AfxConfig}}</div>
+
+<script>
+    (function() {
+        var fieldContainer = document.getElementById("afx-config-field");
+        var imgElement = fieldContainer ? fieldContainer.querySelector("img") : null;
+        var configScript = "_afx_example.js"; // Default fallback
+        
+        if (imgElement) {
+            var rawSrc = imgElement.getAttribute("src") || "";
+            var filename = rawSrc.substring(rawSrc.lastIndexOf('/') + 1);
+            if (filename && filename.startsWith("_afx_") && filename.endsWith(".js")) {
+                configScript = filename;
+            }
+        }
+        
+        // Dynamically load the resolved configuration script
+        var script = document.createElement('script');
+        script.src = configScript;
+        script.onerror = function() {
+            console.warn("AnkiFX: Config script '" + configScript + "' failed to load. Falling back to default.");
+            var fallback = document.createElement('script');
+            fallback.src = "_afx_example.js";
+            document.head.appendChild(fallback);
+        };
+        document.head.appendChild(script);
+    })();
+</script>
 
 <!-- Load the local offline engine backup first (static load is 100% mobile-resilient and CORS-safe) -->
 <script src="_ankifx.js" onerror="console.warn('AnkiFX: Local engine backup not found in collection.media.')"></script>
@@ -63,8 +90,9 @@
 
         const hasAnkiFX = typeof AnkiFX !== 'undefined';
         const hasRun = typeof run === 'function';
+        const hasConfig = typeof AnkiFX_Config !== 'undefined';
 
-        if (hasAnkiFX && hasRun) {
+        if (hasAnkiFX && hasRun && hasConfig) {
             // Wait for remote engine to finish loading or fail (up to 800ms)
             const isWaitingForRemote = (remoteStatus === "pending") && (attempts < 16);
             if (isWaitingForRemote) {
@@ -101,11 +129,11 @@
             }
         } else if (attempts < 60) { // Poll for ~3 seconds
             if (attempts % 10 === 0) {
-                window.AnkiFX_Loader_Logs.push("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ")...");
+                window.AnkiFX_Loader_Logs.push("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ", Config=" + hasConfig + ")...");
             }
             setTimeout(() => triggerAnkiFX(attempts + 1), 50);
         } else {
-            const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED");
+            const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED") + ", Config: " + (hasConfig ? "Loaded" : "FAILED");
             window.AnkiFX_Loader_Logs.push(err);
             console.error(err);
         }

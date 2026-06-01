@@ -93,28 +93,49 @@ To edit visual effects, customize layouts, or compile the codebase locally:
 
 ---
 
-## ⚙️ Configuration & Custom Deck Styling
+## ⚙️ Configuration & Custom Deck Styling (For End Users)
 
-AnkiFX utilizes a deck-specific configuration payload to populate the attribution details, terms and conditions, scrolling marquee text, and initial effect preferences.
+AnkiFX utilizes a deck-specific configuration payload to populate attribution details, terms and conditions, a scrolling marquee text, and startup visualizer preferences.
 
-### 1. Creating Private Deck Configurations
+With our unified card design, **you no longer need separate Note Types for different decks.** Instead, a single Note Type is dynamically customized on a per-deck basis using the mandatory `AfxConfig` note field.
+
+### 1. The Mandatory `AfxConfig` note field
+To configure a deck to use a custom payload, your Note Type **must** contain a field named `AfxConfig`. 
+
+- **For Custom Configurations (e.g. Medicine):** Set the `AfxConfig` field to point to your custom script via a hidden `<img>` tag:
+  ```html
+  <img src="_afx_medicine.js" style="display: none !important;">
+  ```
+- **For the Default/Example Config:** Leave the `AfxConfig` field blank. It will automatically load the default `_afx_example.js` config.
+
+> [!IMPORTANT]
+> **Why this HTML tag is required inside the field:** Anki's media engine scans note fields to determine which files to sync to mobile (AnkiMobile/AnkiDroid) or package in `.apkg` deck exports. Storing your config file inside a hidden `<img>` tag directly in this field ensures Anki **automatically syncs it and permanently protects it from being deleted** during "Check Media" cleanups, with zero manual list-tracking in card templates!
+
+---
+
+### 2. Creating Private Deck Configurations
 To customize AnkiFX for a specific deck:
-1. Create a new JavaScript file under `configs/` prefixed with `_afx_` (e.g., `configs/_afx_my_deck.js`).
-2. Populate it using the `window.AnkiFX_Config` object format (shown below).
-*   **Git Protection**: All files under `configs/` matching `_afx_*.js` (except the public `_afx_example.js`) are git-ignored to prevent accidental leaks of private deck credentials or course questions.
+1. Create a new JavaScript file under `configs/` prefixed with `_afx_` (e.g., `configs/_afx_medicine.js`).
+2. Populate it using the `window.AnkiFX_Config` object format (shown in the template below).
+*   **Git Protection**: All files under `configs/` matching `_afx_*.js` (except the public `_afx_example.js`) are git-ignored to prevent accidental leaks of private credentials.
 
-### 2. Terms Disclaimer & Countdown Lockout
+---
+
+### 3. Terms Disclaimer & Countdown Lockout
 *   **Disclaimer Modal**: Populating `termsText` in your config triggers an overlay modal on card load. If empty, the engine boots instantly into visualizers.
 *   **Forced Read Countdown**: Specifying `countdown` (seconds) locks the "I AGREE" button, forcing users to wait and read.
 
-### 3. Tips for Formatting Your Terms
+---
+
+### 4. Tips for Formatting Your Terms
 Since `termsText` is a template literal, you can embed standard HTML tags:
 *   **Styled alerts**: Use `<em style="color: #ff9999;">` to draw attention to disclaimers.
 *   **Lists & Structuring**: Use standard `<ul>` and `<li>` to present guidelines.
 *   **Logos**: Embed web links (`<img src="...">`) to brand your deck visually.
 
+---
 
-### 4. Configuration Template (`_afx_example.js`)
+### 5. Configuration Template (`_afx_example.js`)
 
 Below is the standard configuration template showcasing all available parameters:
 
@@ -160,130 +181,50 @@ window.AnkiFX_Config = {
 
 ---
 
-## 🎨 How to Build Your Own Effects
-
-AnkiFX is designed for extensibility. To add a new visual effect:
-
-1.  **Create a new file** in `src/effects/your_effect.js`.
-2.  **Export an `effect` object** with the following interface:
-
-```javascript
-export const effect = {
-    id: 'your_effect',         // Unique ID for the effect
-    name: 'MY COOL EFFECT',    // Display name in the UI
-    preferredTrack: 'track.mod', // Optional: Auto-switch jukebox to this track
-
-    run(contexts, config) {
-        // Entry point. 'contexts' provides shared access to:
-        // - contexts.gl: WebGL context (afx-shared-gl)
-        // - contexts.ctx2d: Canvas2D context (afx-shared-2d)
-        // - contexts.width / contexts.height: Scaled canvas dimensions (aligned to visible doc bottom)
-        // - contexts.dpr: Device Pixel Ratio
-        // - contexts.topInset: Pixel height of Anki's top status bar/header (--io-header)
-        // - contexts.visibleWidth / contexts.visibleHeight: True visible dimensions (excluding safe insets)
-        // - contexts.visibleBounds: Object { top: contexts.topInset, bottom: contexts.height }
-    },
-
-    stop() {
-        // Cleanup logic. Stop requestAnimationFrame loops here.
-    },
-
-    onResize(w, h, dpr) {
-        // Optional: Handle layout changes (AnkiMobile orientation switch)
-    },
-
-    // --- NEW: Declarative Controls Schema ---
-    // Instead of building custom DOM selectors or buttons, describe your UI controls declaratively here.
-    // The engine automatically generates, mounts, styles, and cleans them up.
-    controls: [
-        {
-            type: "toggle",
-            id: "my_toggle",
-            label: "TEXT",
-            value: true,
-            onChange: (isChecked) => {
-                console.log("Toggle state:", isChecked);
-            }
-        },
-        {
-            type: "slider",
-            id: "my_slider",
-            label: "ZOOM",
-            min: 1.0,
-            max: 20.0,
-            step: 0.1,
-            value: 10.0,
-            onChange: (val) => {
-                console.log("Slider value:", val);
-            }
-        },
-        {
-            type: "button",
-            id: "my_btn",
-            label: "🎨 RANDOMIZE",
-            onClick: () => {
-                console.log("Button clicked!");
-            }
-        },
-        {
-            type: "select",
-            id: "my_select",
-            label: "PRESET",
-            options: [
-                { value: "0", text: "Preset A" },
-                { value: "1", text: "Preset B" }
-            ],
-            value: "0",
-            onChange: (selectedVal) => {
-                console.log("Selected preset index:", selectedVal);
-            }
-        }
-    ]
-};
-
-#### Programmatic UI Control Updates
-If you change coordinates, variables, or state programmatically (e.g. by dragging on a canvas), sync the state to the UI seamlessly without circular trigger loops using the global engine updater:
-```javascript
-AnkiFX.setControlValue('my_slider', 15.5);
-```
-
-3.  **Run the build**: The registry system will automatically detect your new file and include it in the `_ankifx.js` bundle. Switch to it instantly via the in-card effect picker.
-
----
-
-## 🤖 AI-Agent Ready (Vibe Coding)
-
-This repository is built for seamless AI-assisted development ("vibe coding"). If you are an AI assistant (such as Cursor, Windsurf, or a custom agent) working in this codebase, you **must** parse and adhere to the unified boundaries and standards configured in [`.cursorrules`](.cursorrules) at the root of this project.
-
-### Key AI Guardrails (Quick Summary)
-*   **Zero Inline CSS**: All styling must live in `src/core/afx_styles.css`.
-*   **Auto-Registry**: Do not edit `registry.js` manually; it is compiled via `build.js`.
-*   **Git Lifecycle**: Git branches are strictly isolated. All task branches must stem from `main` and use Conventional Commits.
-*   **Mobile Event Blocker**: Interactive controls must call `e.stopPropagation()` on both `click` and touch events to block premature card flips.
-
-Refer to [`.cursorrules`](.cursorrules) for full architectural interfaces and styling tokens.
-
-
----
-
-
-## 🚀 Deployment to Anki
+## 🚀 Deployment to Anki (For End Users)
 
 AnkiFX supports both **local media loading** and **remote CDN loading**. We highly recommend using the **Resilient Hybrid Deployment** model. It loads the local engine backup first to ensure offline capability, but overrides it with the remote CDN version if online—always giving priority to the latest remote code updates.
 
 The engine's secure assignment logic protects the global `window.AnkiFX` reference. Even if the local script executes with a delay (due to native iOS/WKWebView custom-protocol file latency on AnkiMobile), the engine detects that a remote version is already active and safely declines to overwrite it.
 
-### Step-by-Step Hybrid Deployment (Recommended)
+### Step-by-Step Hybrid Deployment
 
 1. Run `npm run build`.
-2. Copy `_ankifx.js` and your customized `_afx_[my_deck].js` config from the `build/` directory to your Anki `collection.media` folder.
+2. Copy `_ankifx.js`, `_afx_example.js`, and your customized config payloads (e.g. `_afx_medicine.js`) from the `build/` directory to your Anki `collection.media` folder.
 3. Paste the following robust loader script into your Anki Card Front Template:
 
 ```html
-<!-- Load your customized deck configuration first -->
-<script src="_afx_my_deck.js" onerror="console.error('AnkiFX Error: Failed to load config script. Verify file is present in collection.media.')"></script>
+<!-- Hidden container for the custom Note field -->
+<div id="afx-config-field" style="display: none !important;">{{AfxConfig}}</div>
 
-<!-- Load the local offline engine backup (static load is CORS-safe and offline-resilient) -->
+<script>
+    (function() {
+        var fieldContainer = document.getElementById("afx-config-field");
+        var imgElement = fieldContainer ? fieldContainer.querySelector("img") : null;
+        var configScript = "_afx_example.js"; // Default fallback
+        
+        if (imgElement) {
+            var rawSrc = imgElement.getAttribute("src") || "";
+            var filename = rawSrc.substring(rawSrc.lastIndexOf('/') + 1);
+            if (filename && filename.startsWith("_afx_") && filename.endsWith(".js")) {
+                configScript = filename;
+            }
+        }
+        
+        // Dynamically load the resolved configuration script
+        var script = document.createElement('script');
+        script.src = configScript;
+        script.onerror = function() {
+            console.warn("AnkiFX: Config script '" + configScript + "' failed to load. Falling back to default.");
+            var fallback = document.createElement('script');
+            fallback.src = "_afx_example.js";
+            document.head.appendChild(fallback);
+        };
+        document.head.appendChild(script);
+    })();
+</script>
+
+<!-- Load the local offline engine backup first (static load is 100% mobile-resilient and CORS-safe) -->
 <script src="_ankifx.js" onerror="console.warn('AnkiFX: Local engine backup not found in collection.media.')"></script>
 
 <!-- Load the latest remote engine CDN (parsed sequentially, overrides local global if online) -->
@@ -336,8 +277,9 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
 
         const hasAnkiFX = typeof AnkiFX !== 'undefined';
         const hasRun = typeof run === 'function';
+        const hasConfig = typeof AnkiFX_Config !== 'undefined';
 
-        if (hasAnkiFX && hasRun) {
+        if (hasAnkiFX && hasRun && hasConfig) {
             // Wait for remote engine to finish loading or fail (up to 800ms)
             const isWaitingForRemote = (remoteStatus === "pending") && (attempts < 16);
             if (isWaitingForRemote) {
@@ -375,11 +317,11 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
             }
         } else if (attempts < 60) { // Poll for ~3 seconds
             if (attempts % 10 === 0) {
-                window.AnkiFX_Loader_Logs.push("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ")...");
+                window.AnkiFX_Loader_Logs.push("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ", Config=" + hasConfig + ")...");
             }
             setTimeout(() => triggerAnkiFX(attempts + 1), 50);
         } else {
-            const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED");
+            const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED") + ", Config: " + (hasConfig ? "Loaded" : "FAILED");
             window.AnkiFX_Loader_Logs.push(err);
             console.error(err);
         }
@@ -406,27 +348,129 @@ Anki does not perform a full browser/WebView reload when navigating between flas
 2. **Presence Check**: On every DOM shift, the observer looks for a hidden element with the class `ankifx-card` inside the `#qa` container.
 3. **Auto-Destroy**: If `<div class="ankifx-card" style="display:none;"></div>` is **not** found, the engine immediately calls `AnkiFX.destroy()`, safely tearing down animation frames, stopping audio playbacks, and releasing resources.
 
-#### Mandatory Template Tag:
-Every AnkiFX card template (both Front and Back) **must** include this exact tag somewhere in the HTML (preferably at the bottom of the card body):
+#### Mandatory Template Tags:
+Every AnkiFX card template Front **must** include these exact tags somewhere in the HTML (preferably at the bottom of the card body):
 
 ```html
 <!-- Mandatory marker for AnkiFX card detection and auto-cleanup -->
 <div class="ankifx-card" style="display:none;"></div>
+
+<!-- Keep these statically in your template so Anki packages and syncs basic engines -->
+<img src="_ankifx.js" style="display:none !important;">
+<img src="_afx_example.js" style="display:none !important;">
+```
+
+And your Back templates should include:
+
+```html
+<div id="afx-config-field" style="display: none !important;">{{AfxConfig}}</div>
+<div class="ankifx-card" style="display:none;"></div>
+<img src="_ankifx.js" style="display:none !important;">
+<img src="_afx_example.js" style="display:none !important;">
 ```
 
 ---
 
-### 📦 Packaging Assets for Deck Distribution (`.apkg`)
+## 🎨 How to Build Your Own Effects (For Developers)
 
-When you export a deck as an `.apkg` file, Anki scans **only the fields of your notes** (not the card templates) to decide which media assets to package inside the archive. If a script is only referenced in the template (like `<script src="_ankifx.js"></script>`), Anki's media exporter will completely skip it, resulting in broken, static templates for anyone who imports your deck.
+AnkiFX is designed for extensibility. To add a new visual effect:
 
-#### The "Hidden Scanner Trick"
-To trick Anki's media scanner into packaging your local scripts (`_ankifx.js` and `_afx_my_deck.js`) into the `.apkg`:
+1.  **Create a new file** in `src/effects/your_effect.js`.
+2.  **Export an `effect` object** with the following interface:
 
-1. Create a "Readme", "Intro", or "Tutorial" card in your deck (or choose any note that exists in the deck).
-2. Edit that note, switch to **HTML editing mode** in one of the fields (like `Sources` or `Extra`), and insert an explicit, invisible image reference:
-   ```html
-   <img src="_ankifx.js" style="display:none !important;">
-   <img src="_afx_my_deck.js" style="display:none !important;">
-   ```
-3. **How it works**: Anki's media scanner detects the `src` attribute pointing to these files and packages them into the `.apkg`. When a user imports your deck, Anki automatically unpacks the scripts directly into their local `collection.media` folder. The `display:none !important;` styling keeps them completely invisible on the card itself, guaranteeing that global CSS image styles (e.g. `img { display: block; }`) won't override it and show a broken image box!
+```javascript
+export const effect = {
+    id: 'your_effect',         // Unique ID for the effect
+    name: 'MY COOL EFFECT',    // Display name in the UI
+    preferredTrack: 'track.mod', // Optional: Auto-switch jukebox to this track
+
+    run(contexts, config) {
+        // Entry point. 'contexts' provides shared access to:
+        // - contexts.gl: WebGL context (afx-shared-gl)
+        // - contexts.ctx2d: Canvas2D context (afx-shared-2d)
+        // - contexts.width / contexts.height: Scaled canvas dimensions (aligned to visible doc bottom)
+        // - contexts.dpr: Device Pixel Ratio
+        // - contexts.topInset: Pixel height of Anki's top status bar/header (--io-header)
+        // - contexts.visibleWidth / contexts.visibleHeight: True visible dimensions (excluding safe insets)
+        // - contexts.visibleBounds: Object { top: contexts.topInset, bottom: contexts.height }
+    },
+
+    stop() {
+        // Cleanup logic. Stop requestAnimationFrame loops here.
+    },
+
+    onResize(w, h, dpr) {
+        // Optional: Handle layout changes (AnkiMobile orientation switch)
+    },
+
+    // --- Declarative Controls Schema ---
+    // Instead of building custom DOM selectors or buttons, describe your UI controls declaratively here.
+    // The engine automatically generates, mounts, styles, and cleans them up.
+    controls: [
+        {
+            type: "toggle",
+            id: "my_toggle",
+            label: "TEXT",
+            value: true,
+            onChange: (isChecked) => {
+                console.log("Toggle state:", isChecked);
+            }
+        },
+        {
+            type: "slider",
+            id: "my_slider",
+            label: "ZOOM",
+            min: 1.0,
+            max: 20.0,
+            step: 0.1,
+            value: 10.0,
+            onChange: (val) => {
+                console.log("Slider value:", val);
+            }
+        },
+        {
+            type: "button",
+            id: "my_btn",
+            label: "🎨 RANDOMIZE",
+            onClick: () => {
+                console.log("Button clicked!");
+            }
+        },
+        {
+            type: "select",
+            id: "my_select",
+            label: "PRESET",
+            options: [
+                { value: "0", text: "Preset A" },
+                { value: "1", text: "Preset B" }
+            ],
+            value: "0",
+            onChange: (selectedVal) => {
+                console.log("Selected preset index:", selectedVal);
+            }
+        }
+    ]
+};
+```
+
+#### Programmatic UI Control Updates
+If you change coordinates, variables, or state programmatically (e.g. by dragging on a canvas), sync the state to the UI seamlessly without circular trigger loops using the global engine updater:
+```javascript
+AnkiFX.setControlValue('my_slider', 15.5);
+```
+
+3.  **Run the build**: The registry system will automatically detect your new file and include it in the `_ankifx.js` bundle. Switch to it instantly via the in-card effect picker.
+
+---
+
+## 🤖 AI-Agent Ready (Vibe Coding)
+
+This repository is built for seamless AI-assisted development ("vibe coding"). If you are an AI assistant (such as Cursor, Windsurf, or a custom agent) working in this codebase, you **must** parse and adhere to the unified boundaries and standards configured in [`.cursorrules`](.cursorrules) at the root of this project.
+
+### Key AI Guardrails (Quick Summary)
+*   **Zero Inline CSS**: All styling must live in `src/core/afx_styles.css`.
+*   **Auto-Registry**: Do not edit `registry.js` manually; it is compiled via `build.js`.
+*   **Git Lifecycle**: Git branches are strictly isolated. All task branches must stem from `main` and use Conventional Commits.
+*   **Mobile Event Blocker**: Interactive controls must call `e.stopPropagation()` on both `click` and touch events to block premature card flips.
+
+Refer to [`.cursorrules`](.cursorrules) for full architectural interfaces and styling tokens.
