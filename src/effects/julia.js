@@ -23,7 +23,7 @@ export const effect = {
         { name: 'Golden Dragon', cRe: -0.4, cIm: 0.6, zoomDepth: 9.0, targetX: -0.042175, targetY: -0.036744 },
         { name: 'Filigree', cRe: -0.70176, cIm: -0.3842, zoomDepth: 10.5, targetX: -0.096904, targetY: -0.656621 },
         { name: 'Fractal Storm', cRe: -0.7269, cIm: 0.1889, zoomDepth: 10.5, targetX: -0.237086, targetY: 0.547981 },
-        { name: 'Seahorse Spiral', cRe: -0.74543, cIm: 0.11301, zoomDepth: 12.0, targetX: -0.529406, targetY: 0.072863 },
+        { name: 'Seahorse Spiral', cRe: -0.74543, cIm: 0.11301, zoomDepth: 7.5, targetX: -0.529406, targetY: 0.072863 },
     ],
     marqueeFont: {
         color: '#FFF',
@@ -34,12 +34,17 @@ export const effect = {
 let currentMouseListener = null;
 let currentMouseMoveListener = null;
 let mousePos = { x: 0, y: 0 };
+
+const defaultPresetIndex = parseInt(localStorage.getItem('ankifx_julia_preset_index') || '0', 10);
+const defaultPreset = effect.presets[defaultPresetIndex] || effect.presets[0];
+
 let juliaState = {
-    cRe: -0.800,
-    cIm: 0.156,
-    zoomDepth: 10.0,
-    targetX: -0.527503,
-    targetY: 0.075912,
+    presetIndex: defaultPresetIndex,
+    cRe: defaultPreset.cRe,
+    cIm: defaultPreset.cIm,
+    zoomDepth: defaultPreset.zoomDepth,
+    targetX: defaultPreset.targetX,
+    targetY: defaultPreset.targetY,
     speed: parseFloat(localStorage.getItem('ankifx_julia_speed')) || 0.15
 };
 
@@ -150,56 +155,137 @@ export function runJulia(contexts, config = {}) {
     // 8.5 Debug Tuning Panel
     let debugInfoEl = null;
     let getCoordsAt = null;
+
+    const isSmallScreen = currentW < 480;
+    
+    // Initialize coordinate states from saved preset
+    const savedPresetIndex = parseInt(localStorage.getItem('ankifx_julia_preset_index') || '0', 10);
+    juliaState.presetIndex = savedPresetIndex;
+    const activePreset = effect.presets[savedPresetIndex] || effect.presets[0];
+
+    juliaState.cRe = config.cRe !== undefined ? config.cRe : activePreset.cRe;
+    juliaState.cIm = config.cIm !== undefined ? config.cIm : activePreset.cIm;
+    juliaState.zoomDepth = config.zoomDepth !== undefined ? config.zoomDepth : activePreset.zoomDepth;
+    juliaState.targetX = config.targetX !== undefined ? config.targetX : activePreset.targetX;
+    juliaState.targetY = config.targetY !== undefined ? config.targetY : activePreset.targetY;
+
+    const juliaPresetControl = {
+        type: 'select',
+        id: 'julia-preset',
+        label: 'PRESET',
+        options: effect.presets.map((p, i) => ({ value: i, text: (isSmallScreen ? '💠 ' : '[ Preset: ') + p.name + (isSmallScreen ? '' : ' ]') })),
+        value: juliaState.presetIndex,
+        onChange: (val) => {
+            const presetIndex = parseInt(val);
+            localStorage.setItem('ankifx_julia_preset_index', presetIndex);
+            juliaState.presetIndex = presetIndex;
+            const preset = effect.presets[presetIndex];
+            if (preset) {
+                Object.assign(config, preset);
+                juliaState.cRe = preset.cRe;
+                juliaState.cIm = preset.cIm;
+                juliaState.zoomDepth = preset.zoomDepth;
+                juliaState.targetX = preset.targetX;
+                juliaState.targetY = preset.targetY;
+                
+                if (config.debug) {
+                    AnkiFX.setControlValue('julia-cRe', preset.cRe);
+                    AnkiFX.setControlValue('julia-cIm', preset.cIm);
+                    AnkiFX.setControlValue('julia-zoomDepth', preset.zoomDepth);
+                    AnkiFX.setControlValue('julia-targetX', preset.targetX);
+                    AnkiFX.setControlValue('julia-targetY', preset.targetY);
+                }
+                
+                effect.stop();
+                if (contexts.ctx2d) contexts.ctx2d.clearRect(0, 0, currentW, currentH);
+                AnkiFX.startEffect(config, document.getElementById('ankifx-background'), config.marqueePosition, 'julia');
+            }
+        }
+    };
+
     if (config.debug) {
-        const pickerStack = document.getElementById('afx-controls-stack-right');
-        if (pickerStack) {
+        effect.controls = [];
+    } else {
+        effect.controls = [juliaPresetControl];
+    }
+
+    if (config.debug) {
+        effect.controls.push(
+            {
+                type: 'slider',
+                id: 'julia-cRe',
+                label: 'C-RE',
+                min: -1.5,
+                max: 1.0,
+                step: 0.001,
+                value: juliaState.cRe,
+                onChange: (v) => { juliaState.cRe = v; }
+            },
+            {
+                type: 'slider',
+                id: 'julia-cIm',
+                label: 'C-IM',
+                min: -1.0,
+                max: 1.0,
+                step: 0.001,
+                value: juliaState.cIm,
+                onChange: (v) => { juliaState.cIm = v; }
+            },
+            {
+                type: 'slider',
+                id: 'julia-zoomDepth',
+                label: 'ZOOM',
+                min: 2.0,
+                max: 25.0,
+                step: 0.1,
+                value: juliaState.zoomDepth,
+                onChange: (v) => { juliaState.zoomDepth = v; }
+            },
+            {
+                type: 'slider',
+                id: 'julia-targetX',
+                label: 'T-X',
+                min: -2.0,
+                max: 2.0,
+                step: 0.0001,
+                value: juliaState.targetX,
+                onChange: (v) => { juliaState.targetX = v; }
+            },
+            {
+                type: 'slider',
+                id: 'julia-targetY',
+                label: 'T-Y',
+                min: -2.0,
+                max: 2.0,
+                step: 0.0001,
+                value: juliaState.targetY,
+                onChange: (v) => { juliaState.targetY = v; }
+            },
+            {
+                type: 'slider',
+                id: 'julia-speed',
+                label: 'SPD',
+                min: 0.005,
+                max: 0.3,
+                step: 0.005,
+                value: juliaState.speed,
+                onChange: (v) => {
+                    juliaState.speed = v;
+                    localStorage.setItem('ankifx_julia_speed', v);
+                }
+            }
+        );
+        effect.controls.push(juliaPresetControl);
+
+        // We can render and prepend the hover coordinate reader dynamically
+        const container = document.getElementById('afx-effect-controls-container');
+        if (container) {
             debugInfoEl = document.createElement('div');
             debugInfoEl.id = 'afx-julia-debug-info';
             debugInfoEl.className = 'afx-control-row julia-debug-el';
-            debugInfoEl.style.cssText = 'height: 20px !important; margin-bottom: 2px; pointer-events: none; justify-content: flex-end; opacity: 0.8; font-size: 11px !important; color: #ff00ff;';
+            debugInfoEl.style.cssText = 'height: 20px !important; margin-bottom: 2px; pointer-events: none; justify-content: flex-end; opacity: 0.8; font-size: 11px !important; color: #ff00ff; border: none; background: transparent;';
             debugInfoEl.textContent = 'HOVER TO SEE TARGET COORDS';
-            pickerStack.prepend(debugInfoEl);
-
-            const createSlider = (label, key, min, max, step, precision = 3) => {
-                const row = document.createElement('div');
-                row.className = 'afx-control-row julia-tuner-row julia-debug-el';
-                row.style.cssText = 'height: 24px !important; margin-bottom: 2px; gap: 8px; justify-content: flex-end; font-size: 10px !important; color: #00ffff;';
-                
-                const val = juliaState[key];
-                row.innerHTML = `
-                    <span>${label}:</span>
-                    <input type="range" class="julia-slider" data-key="${key}" min="${min}" max="${max}" step="${step}" value="${val}" style="width: 70px; accent-color: #00ffff; cursor: pointer;">
-                    <input type="number" class="julia-val" data-key="${key}" step="${step}" value="${val.toFixed(precision)}" style="width: 70px; background: rgba(0,0,0,0.4); border: 1px solid #00ffff; color: #00ffff; font-size: 10px !important; padding: 2px 4px; border-radius: 3px; outline: none;">
-                `;
-
-                const slider = row.querySelector('.julia-slider');
-                const numInput = row.querySelector('.julia-val');
-
-                const updateVal = (newVal, skipInput = false) => {
-                    juliaState[key] = parseFloat(newVal);
-                    if (!skipInput) numInput.value = juliaState[key].toFixed(precision);
-                    slider.value = juliaState[key];
-                    if (key === 'speed') localStorage.setItem('ankifx_julia_speed', juliaState[key]);
-                };
-
-                slider.oninput = (e) => updateVal(e.target.value);
-                numInput.oninput = (e) => updateVal(e.target.value, true);
-                
-                return row;
-            };
-
-            juliaState.cRe = config.cRe !== undefined ? config.cRe : -0.8;
-            juliaState.cIm = config.cIm !== undefined ? config.cIm : 0.156;
-            juliaState.zoomDepth = config.zoomDepth !== undefined ? config.zoomDepth : 10.0;
-            juliaState.targetX = config.targetX !== undefined ? config.targetX : -0.527503;
-            juliaState.targetY = config.targetY !== undefined ? config.targetY : 0.075912;
-
-            pickerStack.prepend(createSlider('SPD', 'speed', 0.005, 0.3, 0.005, 3));
-            pickerStack.prepend(createSlider('T-Y', 'targetY', -2.0, 2.0, 0.0001, 6));
-            pickerStack.prepend(createSlider('T-X', 'targetX', -2.0, 2.0, 0.0001, 6));
-            pickerStack.prepend(createSlider('ZOOM', 'zoomDepth', 2.0, 25.0, 0.1, 1));
-            pickerStack.prepend(createSlider('C-IM', 'cIm', -1.0, 1.0, 0.001, 6));
-            pickerStack.prepend(createSlider('C-RE', 'cRe', -1.5, 1.0, 0.001, 6));
+            container.prepend(debugInfoEl);
         }
 
         getCoordsAt = (screenX, screenY, currentTime) => {
@@ -222,17 +308,13 @@ export function runJulia(contexts, config = {}) {
         };
 
         const handleMouseDown = (e) => {
-            if (e.target.closest('.afx-controls-stack') || e.target.closest('.afx-dialog') || e.target.closest('.afx-dual-control-stack')) return;
+            if (e.target.closest('#afx-controls-dock') || e.target.closest('.afx-dialog')) return;
             const currentTime = (performance.now() * 0.001) - startTime;
             const { tx, ty } = getCoordsAt(e.clientX, e.clientY, currentTime);
             juliaState.targetX = tx;
             juliaState.targetY = ty;
-            ['targetX', 'targetY'].forEach(key => {
-                const slider = document.querySelector(`.julia-slider[data-key="${key}"]`);
-                const numInput = document.querySelector(`.julia-val[data-key="${key}"]`);
-                if (slider) slider.value = juliaState[key];
-                if (numInput) numInput.value = juliaState[key].toFixed(6);
-            });
+            AnkiFX.setControlValue('julia-targetX', tx);
+            AnkiFX.setControlValue('julia-targetY', ty);
         };
         window.addEventListener('mousedown', handleMouseDown);
         currentMouseListener = handleMouseDown;

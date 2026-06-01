@@ -190,8 +190,61 @@ export const effect = {
 
     onResize(w, h, dpr) {
         // Optional: Handle layout changes (AnkiMobile orientation switch)
-    }
+    },
+
+    // --- NEW: Declarative Controls Schema ---
+    // Instead of building custom DOM selectors or buttons, describe your UI controls declaratively here.
+    // The engine automatically generates, mounts, styles, and cleans them up.
+    controls: [
+        {
+            type: "toggle",
+            id: "my_toggle",
+            label: "TEXT",
+            value: true,
+            onChange: (isChecked) => {
+                console.log("Toggle state:", isChecked);
+            }
+        },
+        {
+            type: "slider",
+            id: "my_slider",
+            label: "ZOOM",
+            min: 1.0,
+            max: 20.0,
+            step: 0.1,
+            value: 10.0,
+            onChange: (val) => {
+                console.log("Slider value:", val);
+            }
+        },
+        {
+            type: "button",
+            id: "my_btn",
+            label: "🎨 RANDOMIZE",
+            onClick: () => {
+                console.log("Button clicked!");
+            }
+        },
+        {
+            type: "select",
+            id: "my_select",
+            label: "PRESET",
+            options: [
+                { value: "0", text: "Preset A" },
+                { value: "1", text: "Preset B" }
+            ],
+            value: "0",
+            onChange: (selectedVal) => {
+                console.log("Selected preset index:", selectedVal);
+            }
+        }
+    ]
 };
+
+#### Programmatic UI Control Updates
+If you change coordinates, variables, or state programmatically (e.g. by dragging on a canvas), sync the state to the UI seamlessly without circular trigger loops using the global engine updater:
+```javascript
+AnkiFX.setControlValue('my_slider', 15.5);
 ```
 
 3.  **Run the build**: The registry system will automatically detect your new file and include it in the `_ankifx.js` bundle. Switch to it instantly via the in-card effect picker.

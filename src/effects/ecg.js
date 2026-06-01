@@ -23,6 +23,27 @@ export function runECG(contexts, config) {
     currentW = contexts.width;
     currentH = contexts.height;
 
+    const initialRhythm = localStorage.getItem('ankifx_ecg_rhythm') || 'sinus';
+    effect.controls = [
+        {
+            type: 'button',
+            id: 'ecg-trigger',
+            label: initialRhythm === 'sinus' ? '⚡ TRIGGER ARRHYTHMIA' : '💚 RESTORE SINUS',
+            onClick: () => {
+                const current = localStorage.getItem('ankifx_ecg_rhythm') || 'sinus';
+                let next;
+                if (current === 'sinus') {
+                    const rhythms = ['first_degree', 'mobitz_1', 'mobitz_2', 'third_degree', 'st_elevation', 'afib', 'a_flutter', 'torsades'];
+                    next = rhythms[Math.floor(Math.random() * rhythms.length)];
+                } else {
+                    next = 'sinus';
+                }
+                localStorage.setItem('ankifx_ecg_rhythm', next);
+                localStorage.setItem('ankifx_ecg_trigger_time', Date.now());
+            }
+        }
+    ];
+
     // --- Configuration ---
     const SWEEP_SPEED_PX_PER_S = 200;       // pixels per second sweep speed
     const GAP_WIDTH = 40;                    // dark gap ahead of sweep cursor
@@ -276,7 +297,7 @@ export function runECG(contexts, config) {
         const storedRhythm = localStorage.getItem('ankifx_ecg_rhythm') || 'sinus';
         const triggerTime = parseInt(localStorage.getItem('ankifx_ecg_trigger_time') || '0');
 
-        // Check if user clicked manual trigger button
+                // Check if user clicked manual trigger button
         if (triggerTime > lastTriggerTime) {
             lastTriggerTime = triggerTime;
             currentRhythm = storedRhythm;
@@ -295,6 +316,12 @@ export function runECG(contexts, config) {
                 afibNextBpm = 70 + Math.floor(Math.random() * 60);
                 afibNextCycleDuration = 60 / afibNextBpm;
             }
+
+            // Update declarative button label and force rerender
+            if (effect.controls && effect.controls[0]) {
+                effect.controls[0].label = currentRhythm === 'sinus' ? '⚡ TRIGGER ARRHYTHMIA' : '💚 RESTORE SINUS';
+                AnkiFX.renderEffectControls(effect);
+            }
         }
 
         // 2. Auto-cycle rhythms sequentially (Sinus -> Arrhythmia 1 -> Sinus -> Arrhythmia 2...)
@@ -312,20 +339,11 @@ export function runECG(contexts, config) {
                 afibNextBpm = 70 + Math.floor(Math.random() * 60);
                 afibNextCycleDuration = 60 / afibNextBpm;
             }
-        }
 
-        // 2.5. Update the ECG arrhythmia trigger button label and style dynamically
-        const ecgTriggerBtn = document.getElementById('afx-ecg-trigger-btn');
-        const ecgTriggerContainer = document.getElementById('afx-ecg-trigger-container');
-        if (ecgTriggerBtn && ecgTriggerContainer) {
-            if (currentRhythm === 'sinus') {
-                ecgTriggerBtn.innerText = '⚡ TRIGGER ARRHYTHMIA';
-                ecgTriggerBtn.style.color = '#ff1a1a';
-                ecgTriggerContainer.style.border = '1px solid rgba(255, 26, 26, 0.45)';
-            } else {
-                ecgTriggerBtn.innerText = '💚 RESTORE SINUS';
-                ecgTriggerBtn.style.color = '#28a745';
-                ecgTriggerContainer.style.border = '1px solid rgba(40, 167, 69, 0.45)';
+            // Update declarative button label and force rerender
+            if (effect.controls && effect.controls[0]) {
+                effect.controls[0].label = currentRhythm === 'sinus' ? '⚡ TRIGGER ARRHYTHMIA' : '💚 RESTORE SINUS';
+                AnkiFX.renderEffectControls(effect);
             }
         }
 

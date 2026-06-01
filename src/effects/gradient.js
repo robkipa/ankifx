@@ -735,6 +735,18 @@ let gradientInstance = null;
 export const effect = {
     id: 'gradient',
     name: 'Gradient',
+    controls: [
+        {
+            type: 'button',
+            id: 'gradient-randomize',
+            label: '🎨 RANDOMIZE',
+            onClick: () => {
+                if (gradientInstance) {
+                    gradientInstance.randomizeColors();
+                }
+            }
+        }
+    ],
     run: (contexts, config) => {
         if (gradientInstance) {
             gradientInstance.destroy();
@@ -761,11 +773,6 @@ export const effect = {
             gradientInstance.width = w;
             gradientInstance.height = h;
             gradientInstance.resize();
-        }
-    },
-    randomizeColors: () => {
-        if (gradientInstance) {
-            gradientInstance.randomizeColors();
         }
     },
     marqueeFont: {

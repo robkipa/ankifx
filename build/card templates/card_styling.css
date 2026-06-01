@@ -16,7 +16,8 @@ body {
 
 /* Prevent card content from touching the edges of the screen while keeping the background canvas full-screen */
 #qa {
-    padding: 0 15px calc(var(--bottom-inset) + 100px) 15px !important;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
     box-sizing: border-box !important;
 }
 

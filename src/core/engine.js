@@ -105,8 +105,18 @@ export class AnkiFX {
             localStorage.setItem('ankifx_preferred_effect', activeEffect);
         }
 
-        // Pass isMobile and config down to the UI injector
+                // Pass isMobile and config down to the UI injector
         const { overlay, background } = this.injectUI(config, isMobile, activeEffect);
+
+        // --- NEW: ResizeObserver for dynamic safe bottom dock height ---
+        const dock = document.getElementById('afx-controls-dock');
+        if (dock) {
+            this.dockObserver = new ResizeObserver(() => {
+                const rect = dock.getBoundingClientRect();
+                document.documentElement.style.setProperty('--afx-dock-height', `${rect.height}px`);
+            });
+            this.dockObserver.observe(dock);
+        }
 
         // Viewport Tuner System
         this.initTuner(config.debug, activeEffect);
@@ -239,13 +249,13 @@ export class AnkiFX {
                     TOTAL ADJ: <span id="afx-tuner-total-val" class="val">0</span>px
                 </div>
             `;
-            const stack = document.getElementById('afx-controls-stack-right');
-            const clearStorageContainer = document.getElementById('afx-clear-storage-container');
+                        const stack = document.querySelector('#afx-controls-dock .afx-control-group-right');
+            const selectorContainer = document.getElementById('afx-effect-selector-container');
             if (stack) {
-                if (clearStorageContainer) {
-                    stack.insertBefore(tuner, clearStorageContainer);
+                if (selectorContainer) {
+                    stack.insertBefore(tuner, selectorContainer);
                 } else {
-                    stack.insertBefore(tuner, stack.lastElementChild);
+                    stack.appendChild(tuner);
                 }
             } else {
                 document.body.appendChild(tuner);
@@ -435,88 +445,37 @@ export class AnkiFX {
         const bgmStatusOff = isSmallScreen ? '🔇' : `🔇${bgmPrefix}OFF`;
         const bgmStatusOn = isSmallScreen ? '🔊' : `🔊${bgmPrefix}ON`;
 
-        let dualControlHtml = `
-            <div class="afx-dual-control-stack">
-                <div class="afx-control-row">
-                    <label class="afx-toggle"><input type="checkbox" id="afx-text-toggle" ${marqueeEnabled ? 'checked' : ''}><span class="afx-slider"></span></label>
-                    <span id="afx-text-status">${marqueeStatusLabel}</span>
-                </div>
-                <div id="afx-bgm-container" class="afx-control-row">
-                    <label class="afx-toggle"><input type="checkbox" id="afx-audio-toggle"><span class="afx-slider"></span></label>
-                    <span id="afx-bgm-status">${bgmStatusOff}</span>
-                </div>
-            </div>
-        `;
-
-        const effPrefix = isSmallScreen ? '🎨 ' : '[ Effect: ';
+                const effPrefix = isSmallScreen ? '🎨 ' : '[ Effect: ';
         const effSuffix = isSmallScreen ? '' : ' ]';
 
         const effectOptions = Object.values(EFFECTS)
             .filter(e => e.id !== 'debug' || config.debug) // Only show debug if flag is true
             .map(e => `
-
                 <option value="${e.id}" ${activeEffect === e.id ? 'selected' : ''}>
                     ${effPrefix}${e.name}${effSuffix}
                 </option>
             `).join('');
 
-        const juliaPrefix = isSmallScreen ? '💠 ' : '[ Preset: ';
-        const juliaSuffix = isSmallScreen ? '' : ' ]';
-
-        const juliaOptions = juliaPresets.map((p, i) => `
-            <option value="${i}">${juliaPrefix}${p.name}${juliaSuffix}</option>
-        `).join('');
-
-        let juliaSelectorHtml = `
-            <div id="afx-julia-selector-container" class="afx-control-row afx-effect-selector-container" style="padding: 0; display: ${activeEffect === 'julia' ? 'flex' : 'none'};">
-                <select id="afx-julia-selector" class="afx-sub-picker">
-                    ${juliaOptions}
-                </select>
-            </div>
-        `;
-
-        let gradientRandomizerHtml = `
-            <div id="afx-gradient-randomizer-container" class="afx-control-row afx-effect-selector-container" style="padding: 0; display: ${activeEffect === 'gradient' ? 'flex' : 'none'}; border: 1px solid rgba(255, 255, 255, 0.15);">
-                <button id="afx-gradient-randomize-btn" style="background: transparent; color: #fff; border: none; width: 100%; height: 100%; cursor: pointer; text-transform: uppercase; font-family: 'Courier New', Courier, monospace !important; font-size: var(--afx-picker-font-size) !important; font-weight: bold !important; padding: 0 15px; display: flex; align-items: center; justify-content: center;">
-                    🎨 RANDOMIZE
-                </button>
-            </div>
-        `;
-
-        let ecgTriggerHtml = `
-            <div id="afx-ecg-trigger-container" class="afx-control-row afx-effect-selector-container" style="padding: 0; display: ${activeEffect === 'ecg' ? 'flex' : 'none'}; border: 1px solid rgba(255, 26, 26, 0.45);">
-                <button id="afx-ecg-trigger-btn" style="background: transparent; color: #ff1a1a; border: none; width: 100%; height: 100%; cursor: pointer; text-transform: uppercase; font-family: 'Courier New', Courier, monospace !important; font-size: var(--afx-picker-font-size) !important; font-weight: bold !important; padding: 0 15px; display: flex; align-items: center; justify-content: center; width: 100%;">
-                    ⚡ TRIGGER ARRHYTHMIA
-                </button>
-            </div>
-        `;
-
-        let effectSelectorHtml = `
-            <div id="afx-effect-selector-container" class="afx-control-row afx-effect-selector-container" style="padding: 0;">
-                <select id="afx-effect-selector">
-                    ${effectOptions}
-                </select>
-            </div>
-        `;
-
-        let clearStorageHtml = "";
-        if (config.debug) {
-            clearStorageHtml = `
-                <div id="afx-clear-storage-container" class="afx-control-row afx-effect-selector-container" style="padding: 0; border: 1px solid rgba(255, 85, 85, 0.4); display: ${activeEffect === 'debug' ? 'flex' : 'none'};">
-                    <button id="afx-debug-clear-storage" style="background: transparent; color: #ff5555; border: none; width: 100%; height: 100%; cursor: pointer; text-transform: uppercase; font-family: 'Courier New', Courier, monospace !important; font-size: var(--afx-picker-font-size) !important; font-weight: bold !important; padding: 0 10px; display: flex; align-items: center; justify-content: center; width: 100%;">
-                        🧹 CLEAR STORAGE
-                    </button>
+        let dockHtml = `
+            <div id="afx-controls-dock">
+                <div class="afx-control-group-left">
+                    <div class="afx-control-row">
+                        <label class="afx-toggle"><input type="checkbox" id="afx-text-toggle" ${marqueeEnabled ? 'checked' : ''}><span class="afx-slider"></span></label>
+                        <span id="afx-text-status">${marqueeStatusLabel}</span>
+                    </div>
+                    <div id="afx-bgm-container" class="afx-control-row">
+                        <label class="afx-toggle"><input type="checkbox" id="afx-audio-toggle"><span class="afx-slider"></span></label>
+                        <span id="afx-bgm-status">${bgmStatusOff}</span>
+                    </div>
                 </div>
-            `;
-        }
-
-        let pickerStackHtml = `
-            <div id="afx-controls-stack-right" class="afx-controls-stack">
-                ${juliaSelectorHtml}
-                ${gradientRandomizerHtml}
-                ${ecgTriggerHtml}
-                ${clearStorageHtml}
-                ${effectSelectorHtml}
+                <div class="afx-control-group-right">
+                    <div id="afx-effect-controls-container"></div>
+                    <div id="afx-effect-selector-container" class="afx-control-row afx-effect-selector-container" style="padding: 0;">
+                        <select id="afx-effect-selector" class="afx-select">
+                            ${effectOptions}
+                        </select>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -552,7 +511,7 @@ export class AnkiFX {
         if (config.debug) {
             globalFpsHtml = `
                 <div id="afx-global-fps" style="position: absolute; top: 10px; left: 10px; color: #0f0; font-family: monospace; font-size: 14px; font-weight: bold; text-shadow: 1px 1px 2px #000; z-index: 9999; pointer-events: none;">
-                    FPS: --
+                     FPS: --
                 </div>
             `;
         }
@@ -561,7 +520,7 @@ export class AnkiFX {
 
         // Inject corner controls (Toggles & Picker) directly into overlay
         const tempContainer = document.createElement('div');
-        tempContainer.innerHTML = dualControlHtml + pickerStackHtml;
+        tempContainer.innerHTML = dockHtml;
         while (tempContainer.firstChild) {
             overlay.appendChild(tempContainer.firstChild);
         }
@@ -736,10 +695,8 @@ export class AnkiFX {
         btnBack.addEventListener('click', (e) => { e.stopPropagation(); if (AnkiFX.jukebox) AnkiFX.jukebox.playPrevious(); });
         btnSkip.addEventListener('click', (e) => { e.stopPropagation(); if (AnkiFX.jukebox) AnkiFX.jukebox.playNext(); });
 
-        // Effect Selector Binding
+                // Effect Selector Binding
         const effectSelector = document.getElementById('afx-effect-selector');
-        const juliaSelectorContainer = document.getElementById('afx-julia-selector-container');
-        const juliaSelector = document.getElementById('afx-julia-selector');
 
         if (effectSelector) {
             effectSelector.addEventListener('change', (e) => {
@@ -756,25 +713,6 @@ export class AnkiFX {
                 }
 
                 config.defaultEffect = newEffect;
-                // Toggle sub-pickers
-                if (juliaSelectorContainer) {
-                    juliaSelectorContainer.style.display = newEffect === 'julia' ? 'flex' : 'none';
-                }
-
-                const gradientRandomizerContainer = document.getElementById('afx-gradient-randomizer-container');
-                if (gradientRandomizerContainer) {
-                    gradientRandomizerContainer.style.display = newEffect === 'gradient' ? 'flex' : 'none';
-                }
-
-                const clearStorageContainer = document.getElementById('afx-clear-storage-container');
-                if (clearStorageContainer) {
-                    clearStorageContainer.style.display = newEffect === 'debug' ? 'flex' : 'none';
-                }
-
-                const ecgTriggerContainer = document.getElementById('afx-ecg-trigger-container');
-                if (ecgTriggerContainer) {
-                    ecgTriggerContainer.style.display = newEffect === 'ecg' ? 'flex' : 'none';
-                }
 
                 const tuner = document.getElementById('afx-tuner-ui');
                 if (newEffect === 'debug') {
@@ -808,68 +746,6 @@ export class AnkiFX {
                     if (isNewTrack) {
                         AnkiFX.jukebox.playNext(targetTrack);
                     }
-                }
-            });
-        }
-
-        // Julia Sub-Picker Binding
-        if (juliaSelector) {
-            juliaSelector.addEventListener('change', (e) => {
-                const presetIndex = parseInt(e.target.value);
-                const preset = EFFECTS['julia'].presets[presetIndex];
-                if (preset) {
-                    // Update current config with preset coordinates
-                    Object.assign(config, preset);
-
-                    // Restart Julia effect
-                    EFFECTS['julia'].stop();
-                    if (this.ctx2D) this.ctx2D.clearRect(0, 0, this.width, this.height);
-                    AnkiFX.startEffect(config, background, config.marqueePosition, 'julia');
-                }
-
-            });
-        }
-
-        // Gradient Randomizer Button Binding
-        const gradientRandomizeBtn = document.getElementById('afx-gradient-randomize-btn');
-        if (gradientRandomizeBtn) {
-            gradientRandomizeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const gradEffect = EFFECTS['gradient'];
-                if (gradEffect && typeof gradEffect.randomizeColors === 'function') {
-                    gradEffect.randomizeColors();
-                }
-            });
-        }
-
-        // ECG Arrhythmia Trigger Button Binding
-        const ecgTriggerBtn = document.getElementById('afx-ecg-trigger-btn');
-        if (ecgTriggerBtn) {
-            ecgTriggerBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const current = localStorage.getItem('ankifx_ecg_rhythm') || 'sinus';
-                let next;
-                if (current === 'sinus') {
-                    const rhythms = ['first_degree', 'mobitz_1', 'mobitz_2', 'third_degree', 'st_elevation', 'afib', 'a_flutter', 'torsades'];
-                    next = rhythms[Math.floor(Math.random() * rhythms.length)];
-                } else {
-                    next = 'sinus';
-                }
-                localStorage.setItem('ankifx_ecg_rhythm', next);
-                localStorage.setItem('ankifx_ecg_trigger_time', Date.now());
-            });
-            ecgTriggerBtn.addEventListener('touchstart', (e) => e.stopPropagation());
-            ecgTriggerBtn.addEventListener('touchend', (e) => e.stopPropagation());
-        }
-
-        // Clear LocalStorage Binding
-        const clearBtn = document.getElementById('afx-debug-clear-storage');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm('Clear ALL AnkiFX local storage?')) {
-                    localStorage.clear();
-                    location.reload();
                 }
             });
         }
@@ -922,7 +798,10 @@ export class AnkiFX {
                 this.marquee.updateStyles(effect.marqueeFont || {});
             }
 
-            effect.run(sharedContexts, config);
+                        effect.run(sharedContexts, config);
+
+            // Render Dynamic Controls for the active effect
+            this.renderEffectControls(effect);
 
             // Respect toggle state on new effect start
             const marqueeEnabled = localStorage.getItem('ankifx_marquee_enabled') !== 'false';
@@ -972,8 +851,8 @@ export class AnkiFX {
             this.marquee = null;
         }
 
-        // Clean up DOM elements
-        ['ankifx-overlay', 'ankifx-background', 'afx-tuner-ui', 'afx-btn-back', 'afx-btn-skip'].forEach(id => {
+                // Clean up DOM elements
+        ['ankifx-overlay', 'ankifx-background', 'afx-tuner-ui', 'afx-btn-back', 'afx-btn-skip', 'afx-controls-dock'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.remove();
         });
@@ -986,6 +865,7 @@ export class AnkiFX {
 
         // Clean up inline styles from html and qa
         document.documentElement.style.removeProperty('--tuner-height');
+        document.documentElement.style.removeProperty('--afx-dock-height');
         const qa = document.getElementById('qa');
         if (qa) {
             qa.style.position = '';
@@ -1008,6 +888,11 @@ export class AnkiFX {
         if (this.observer) {
             this.observer.disconnect();
             this.observer = null;
+        }
+
+        if (this.dockObserver) {
+            this.dockObserver.disconnect();
+            this.dockObserver = null;
         }
 
         console.log("AnkiFX: Destroyed.");
@@ -1049,6 +934,104 @@ export class AnkiFX {
             this.marqueeInterval = requestAnimationFrame(tick);
         };
         this.marqueeInterval = requestAnimationFrame(tick);
+    }
+
+    static renderEffectControls(effect) {
+        const container = document.getElementById('afx-effect-controls-container');
+        if (!container) return;
+
+        // Clear existing controls
+        container.innerHTML = '';
+
+        if (!effect || !effect.controls || effect.controls.length === 0) return;
+
+        effect.controls.forEach(control => {
+            const row = document.createElement('div');
+            row.className = 'afx-control-row';
+            row.id = `afx-control-container-${control.id}`;
+
+            if (control.type === 'toggle') {
+                row.innerHTML = `
+                    <label class="afx-toggle">
+                        <input type="checkbox" id="afx-control-${control.id}" ${control.value ? 'checked' : ''}>
+                        <span class="afx-slider"></span>
+                    </label>
+                    <span id="afx-control-label-${control.id}">${control.label}</span>
+                `;
+                const input = row.querySelector('input');
+                input.addEventListener('change', (e) => {
+                    if (control.onChange) control.onChange(e.target.checked);
+                });
+            } 
+            else if (control.type === 'slider') {
+                row.classList.add('afx-slider-row');
+                const step = control.step || 1;
+                const precision = step.toString().includes('.') ? step.toString().split('.')[1].length : 0;
+                row.innerHTML = `
+                    <span class="afx-slider-label">${control.label}:</span>
+                    <input type="range" id="afx-control-${control.id}" class="afx-range-slider" min="${control.min}" max="${control.max}" step="${step}" value="${control.value}">
+                    <span id="afx-control-val-${control.id}" class="afx-slider-val-text">${control.value.toFixed(precision)}</span>
+                `;
+                const input = row.querySelector('input');
+                const valText = row.querySelector('.afx-slider-val-text');
+                input.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    valText.innerText = val.toFixed(precision);
+                    if (control.onChange) control.onChange(val);
+                });
+            }
+            else if (control.type === 'button') {
+                row.style.padding = '0';
+                row.innerHTML = `
+                    <button id="afx-control-${control.id}" class="afx-action-btn">
+                        ${control.label}
+                    </button>
+                `;
+                const btn = row.querySelector('button');
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (control.onClick) control.onClick();
+                });
+            }
+            else if (control.type === 'select') {
+                row.style.padding = '0';
+                const optionsHtml = (control.options || []).map(opt => {
+                    const val = typeof opt === 'object' ? opt.value : opt;
+                    const text = typeof opt === 'object' ? opt.text : opt;
+                    const sel = val == control.value ? 'selected' : '';
+                    return `<option value="${val}" ${sel}>${text}</option>`;
+                }).join('');
+
+                row.innerHTML = `
+                    <select id="afx-control-${control.id}" class="afx-select">
+                        ${optionsHtml}
+                    </select>
+                `;
+                const select = row.querySelector('select');
+                select.addEventListener('change', (e) => {
+                    if (control.onChange) control.onChange(e.target.value);
+                });
+            }
+
+            container.appendChild(row);
+        });
+    }
+
+    static setControlValue(id, value) {
+        const input = document.getElementById(`afx-control-${id}`);
+        if (input) {
+            if (input.type === 'checkbox') {
+                input.checked = !!value;
+            } else {
+                input.value = value;
+            }
+        }
+        const valText = document.getElementById(`afx-control-val-${id}`);
+        if (valText) {
+            const stepStr = input ? input.step : '';
+            const precision = (stepStr && stepStr.includes('.')) ? stepStr.split('.')[1].length : 0;
+            valText.innerText = typeof value === 'number' ? value.toFixed(precision || (value % 1 === 0 ? 0 : 4)) : value;
+        }
     }
 }
 

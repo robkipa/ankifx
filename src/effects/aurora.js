@@ -316,13 +316,7 @@ export function stopAurora() {
 
     if (currentCanvas) {
         currentCanvas.classList.remove('afx-aurora-active');
-        currentCanvas.style.width = '';
-        currentCanvas.style.height = '';
-        currentCanvas.style.position = '';
-        currentCanvas.style.top = '';
-        currentCanvas.style.left = '';
-        currentCanvas.style.transform = '';
-        currentCanvas.style.transformOrigin = '';
+        currentCanvas.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;';
         currentCanvas = null;
     }
 

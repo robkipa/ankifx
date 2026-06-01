@@ -80,6 +80,7 @@ body {
     height: 100% !important;
     margin: 0 !important;
     padding: 0;
+    padding-bottom: calc(var(--bottom-inset, 0px) + var(--afx-dock-height, 0px)) !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
 }
@@ -120,7 +121,6 @@ body>*,
     background: rgba(0, 0, 0, 0.25);
     transition: background 0.5s ease, opacity 0.5s ease;
     padding: 1rem;
-    padding-bottom: calc(1rem + var(--afx-bottom-offset, 0px)) !important;
     box-sizing: border-box;
     color: #fff;
 }
@@ -128,8 +128,7 @@ body>*,
 /* --- GLOBAL VISIBILITY RULES --- */
 #afx-btn-back,
 #afx-btn-skip,
-.afx-dual-control-stack,
-#afx-controls-stack-right {
+#afx-controls-dock {
     display: none !important;
 }
 
@@ -158,14 +157,8 @@ body>*,
 }
 
 /* Reveal corner controls only after agreement */
-.afx-agreed-state .afx-dual-control-stack,
-.afx-agreed-state #afx-controls-stack-right {
+.afx-agreed-state #afx-controls-dock {
     display: flex !important;
-    pointer-events: auto !important;
-    position: fixed !important;
-    z-index: 10001 !important;
-    flex-direction: column;
-    gap: 8px;
 }
 
 /* Navigation buttons (top corners) */
@@ -187,22 +180,44 @@ body>*,
     right: 20px;
 }
 
-.afx-dual-control-stack {
-    bottom: calc(20px + var(--afx-bottom-offset, 0px)) !important;
-    left: 20px;
-    align-items: flex-start;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+#afx-controls-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--bottom-inset, 0px);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 20px 10px 20px;
+    pointer-events: none;
+    z-index: 10001;
+    box-sizing: border-box;
 }
 
-#afx-controls-stack-right {
-    bottom: calc(20px + var(--afx-bottom-offset, 0px)) !important;
-    right: 20px;
+.afx-control-group-left,
+.afx-control-group-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.afx-control-group-left {
+    align-items: flex-start;
+}
+
+.afx-control-group-right {
     align-items: flex-end;
 }
 
+#afx-effect-controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+/* Base control row styles */
 #afx-effect-selector-container,
 .afx-control-row {
     background: rgba(0, 0, 0, 0.7);
@@ -216,17 +231,77 @@ body>*,
     padding: 0 10px !important;
 }
 
-#afx-controls-stack-right .afx-effect-selector-container {
-    width: auto;
-    min-width: 140px;
-    max-width: 280px;
+#afx-effect-selector-container,
+.afx-control-group-right .afx-control-row {
+    width: 260px !important;
+    max-width: calc(100vw - 40px) !important;
 }
 
-@media (max-width: 480px) {
-    .afx-dual-control-stack {
-        gap: 5px;
-        /* Tighter gap on mobile */
-    }
+/* Unified Control Components */
+.afx-action-btn {
+    background: transparent;
+    color: #fff;
+    border: none;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: var(--afx-picker-font-size) !important;
+    font-weight: bold !important;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.afx-select {
+    background: transparent;
+    color: white;
+    border: none;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    outline: none;
+    appearance: auto;
+    width: 100%;
+    height: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.afx-select option {
+    background: #1a1a1a !important;
+    color: #ffffff !important;
+    padding: 12px !important;
+    font-family: 'Courier New', monospace !important;
+}
+
+.afx-range-slider {
+    flex: 1;
+    accent-color: #00ffff;
+    cursor: pointer;
+    margin: 0 10px;
+}
+
+.afx-slider-label {
+    font-size: 10px !important;
+    color: #00ffff;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+}
+
+.afx-slider-val-text {
+    font-size: 10px !important;
+    color: #00ffff;
+    font-family: 'Courier New', monospace;
+    text-align: right;
 }
 
 @media (max-width: 768px) {
@@ -237,16 +312,6 @@ body>*,
 
     #afx-btn-skip {
         top: calc(10px + env(safe-area-inset-top)) !important;
-        right: calc(10px + env(safe-area-inset-right)) !important;
-    }
-
-    .afx-dual-control-stack {
-        bottom: calc(10px + env(safe-area-inset-bottom) + var(--afx-bottom-offset, 0px)) !important;
-        left: calc(10px + env(safe-area-inset-left)) !important;
-    }
-
-    #afx-controls-stack-right {
-        bottom: calc(10px + env(safe-area-inset-bottom) + var(--afx-bottom-offset, 0px)) !important;
         right: calc(10px + env(safe-area-inset-right)) !important;
     }
 }

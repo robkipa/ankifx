@@ -135,47 +135,61 @@ export function runMandelbrot(contexts, config = {}) {
     let debugInfoEl = null;
     let getCoordsAt = null;
     if (config.debug) {
-        const pickerStack = document.getElementById('afx-controls-stack-right');
-        if (pickerStack) {
+        effect.controls = [
+            {
+                type: 'slider',
+                id: 'mandelbrot-zoomDepth',
+                label: 'ZOOM',
+                min: 2.0,
+                max: 25.0,
+                step: 0.1,
+                value: mandelbrotState.zoomDepth,
+                onChange: (v) => { mandelbrotState.zoomDepth = v; }
+            },
+            {
+                type: 'slider',
+                id: 'mandelbrot-targetX',
+                label: 'T-X',
+                min: -2.5,
+                max: 1.0,
+                step: 0.0001,
+                value: mandelbrotState.targetX,
+                onChange: (v) => { mandelbrotState.targetX = v; }
+            },
+            {
+                type: 'slider',
+                id: 'mandelbrot-targetY',
+                label: 'T-Y',
+                min: -1.5,
+                max: 1.5,
+                step: 0.0001,
+                value: mandelbrotState.targetY,
+                onChange: (v) => { mandelbrotState.targetY = v; }
+            },
+            {
+                type: 'slider',
+                id: 'mandelbrot-speed',
+                label: 'SPD',
+                min: 0.005,
+                max: 0.3,
+                step: 0.005,
+                value: mandelbrotState.speed,
+                onChange: (v) => {
+                    mandelbrotState.speed = v;
+                    localStorage.setItem('ankifx_mandelbrot_speed', v);
+                }
+            }
+        ];
+
+        // We can render and prepend the hover coordinate reader dynamically
+        const container = document.getElementById('afx-effect-controls-container');
+        if (container) {
             debugInfoEl = document.createElement('div');
             debugInfoEl.id = 'afx-mandelbrot-debug-info';
             debugInfoEl.className = 'afx-control-row mandelbrot-debug-el';
-            debugInfoEl.style.cssText = 'height: 20px !important; margin-bottom: 2px; pointer-events: none; justify-content: flex-end; opacity: 0.8; font-size: 11px !important; color: #ff00ff;';
+            debugInfoEl.style.cssText = 'height: 20px !important; margin-bottom: 2px; pointer-events: none; justify-content: flex-end; opacity: 0.8; font-size: 11px !important; color: #ff00ff; border: none; background: transparent;';
             debugInfoEl.textContent = 'HOVER TO SEE TARGET COORDS';
-            pickerStack.prepend(debugInfoEl);
-
-            const createSlider = (label, key, min, max, step, precision = 3) => {
-                const row = document.createElement('div');
-                row.className = 'afx-control-row mandelbrot-tuner-row mandelbrot-debug-el';
-                row.style.cssText = 'height: 24px !important; margin-bottom: 2px; gap: 8px; justify-content: flex-end; font-size: 10px !important; color: #00ffff;';
-                
-                const val = mandelbrotState[key];
-                row.innerHTML = `
-                    <span>${label}:</span>
-                    <input type="range" class="mandelbrot-slider" data-key="${key}" min="${min}" max="${max}" step="${step}" value="${val}" style="width: 70px; accent-color: #00ffff; cursor: pointer;">
-                    <input type="number" class="mandelbrot-val" data-key="${key}" step="${step}" value="${val.toFixed(precision)}" style="width: 70px; background: rgba(0,0,0,0.4); border: 1px solid #00ffff; color: #00ffff; font-size: 10px !important; padding: 2px 4px; border-radius: 3px; outline: none;">
-                `;
-
-                const slider = row.querySelector('.mandelbrot-slider');
-                const numInput = row.querySelector('.mandelbrot-val');
-
-                const updateVal = (newVal, skipInput = false) => {
-                    mandelbrotState[key] = parseFloat(newVal);
-                    if (!skipInput) numInput.value = mandelbrotState[key].toFixed(precision);
-                    slider.value = mandelbrotState[key];
-                    if (key === 'speed') localStorage.setItem('ankifx_mandelbrot_speed', mandelbrotState[key]);
-                };
-
-                slider.oninput = (e) => updateVal(e.target.value);
-                numInput.oninput = (e) => updateVal(e.target.value, true);
-                
-                return row;
-            };
-
-            pickerStack.prepend(createSlider('SPD', 'speed', 0.005, 0.3, 0.005, 3));
-            pickerStack.prepend(createSlider('T-Y', 'targetY', -1.5, 1.5, 0.0001, 6));
-            pickerStack.prepend(createSlider('T-X', 'targetX', -2.5, 1.0, 0.0001, 6));
-            pickerStack.prepend(createSlider('ZOOM', 'zoomDepth', 2.0, 25.0, 0.1, 1));
+            container.prepend(debugInfoEl);
         }
 
         getCoordsAt = (screenX, screenY, currentTime) => {
@@ -194,17 +208,13 @@ export function runMandelbrot(contexts, config = {}) {
         };
 
         const handleMouseDown = (e) => {
-            if (e.target.closest('.afx-controls-stack') || e.target.closest('.afx-dialog') || e.target.closest('.afx-dual-control-stack')) return;
+            if (e.target.closest('#afx-controls-dock') || e.target.closest('.afx-dialog')) return;
             const currentTime = (performance.now() * 0.001) - startTime;
             const { tx, ty } = getCoordsAt(e.clientX, e.clientY, currentTime);
             mandelbrotState.targetX = tx;
             mandelbrotState.targetY = ty;
-            ['targetX', 'targetY'].forEach(key => {
-                const slider = document.querySelector(`.mandelbrot-slider[data-key="${key}"]`);
-                const numInput = document.querySelector(`.mandelbrot-val[data-key="${key}"]`);
-                if (slider) slider.value = mandelbrotState[key];
-                if (numInput) numInput.value = mandelbrotState[key].toFixed(6);
-            });
+            AnkiFX.setControlValue('mandelbrot-targetX', tx);
+            AnkiFX.setControlValue('mandelbrot-targetY', ty);
         };
         window.addEventListener('mousedown', handleMouseDown);
         currentMouseListener = handleMouseDown;
@@ -215,6 +225,8 @@ export function runMandelbrot(contexts, config = {}) {
         };
         window.addEventListener('mousemove', handleMouseMove);
         currentMouseMoveListener = handleMouseMove; 
+    } else {
+        effect.controls = [];
     }
 
     const startTime = performance.now() * 0.001;
