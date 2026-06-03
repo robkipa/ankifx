@@ -8,3 +8,6 @@ build/*
 .gemini/
 configs/_afx_*.json
 !configs/_afx_defaults.json
+
+# Local developer configuration (contains private paths)
+ankifx.local.json

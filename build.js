@@ -5,6 +5,7 @@ const path = require('path');
 const pkg = require('./package.json');
 
 const isWatch = process.argv.includes('--watch');
+const isLocal = process.argv.includes('--local');
 const buildDir = path.join(__dirname, 'build');
 
 // 1. Plugin to discover and register effects
@@ -153,6 +154,48 @@ const copyStaticFilesPlugin = {
                     console.log(`📁 Deck overrides compiled to build/configs/ folder. (${otherConfigs.length} config${otherConfigs.length > 1 ? 's' : ''}: ${otherConfigs.join(', ')})`);
                 } else {
                     console.log('📁 Deck overrides compiled to build/configs/ folder. (no custom overrides found)');
+                }
+
+                // 3. Handle local copy if requested
+                if (isLocal) {
+                    const localConfigPath = path.join(__dirname, 'ankifx.local.json');
+                    if (!fs.existsSync(localConfigPath)) {
+                        console.error('\n⚠️  --local flag passed, but ankifx.local.json was not found.');
+                        console.error('Please create ankifx.local.json in the project root with the following format:');
+                        console.error(JSON.stringify({ ankiMediaDir: "/path/to/collection.media" }, null, 4));
+                        console.error('');
+                        process.exit(1);
+                    }
+
+                    const localConfig = JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
+                    if (!localConfig.ankiMediaDir) {
+                        console.error('\n⚠️  ankifx.local.json is missing the "ankiMediaDir" field.');
+                        process.exit(1);
+                    }
+
+                    const targetDir = localConfig.ankiMediaDir;
+                    if (!fs.existsSync(targetDir)) {
+                        console.error(`\n⚠️  The target directory "${targetDir}" does not exist. Please check your path.`);
+                        process.exit(1);
+                    }
+
+                    const srcJs = path.join(buildDir, '_ankifx.js');
+                    const destJs = path.join(targetDir, '_ankifx.js');
+                    if (fs.existsSync(srcJs)) {
+                        fs.copyFileSync(srcJs, destJs);
+                        console.log(`🚀 Copied build/_ankifx.js to local media directory.`);
+                    } else {
+                        console.warn(`⚠️  Could not find build/_ankifx.js to copy.`);
+                    }
+
+                    const srcJson = path.join(buildDir, '_afx_defaults.json');
+                    const destJson = path.join(targetDir, '_afx_defaults.json');
+                    if (fs.existsSync(srcJson)) {
+                        fs.copyFileSync(srcJson, destJson);
+                        console.log(`🚀 Copied build/_afx_defaults.json to local media directory.`);
+                    } else {
+                        console.warn(`⚠️  Could not find build/_afx_defaults.json to copy.`);
+                    }
                 }
             } catch (err) {
                 console.error('⚠️ Error processing configuration files:', err.message);
