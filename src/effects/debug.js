@@ -2,6 +2,86 @@ let animationId = null;
 let currentW, currentH;
 let debugContainer = null;
 
+const maxCapturedLogs = 200;
+const capturedLogs = [];
+let onLogAdded = null;
+let currentFilter = 'all';
+
+// Global Console Interceptor setup
+const captureLog = (type, args) => {
+    // Only capture if debug mode is active in the current config
+    if (!window.AnkiFX_Config?.debug) return;
+
+    const message = args.map(arg => {
+        if (arg === null) return 'null';
+        if (arg === undefined) return 'undefined';
+        if (typeof arg === 'object') {
+            try {
+                return JSON.stringify(arg);
+            } catch (e) {
+                return String(arg);
+            }
+        }
+        return String(arg);
+    }).join(' ');
+
+    capturedLogs.push({
+        type,
+        message,
+        timestamp: new Date().toLocaleTimeString()
+    });
+
+    if (capturedLogs.length > maxCapturedLogs) {
+        capturedLogs.shift();
+    }
+
+    if (onLogAdded) {
+        onLogAdded();
+    }
+};
+
+// Install console intercept exactly once.
+// We snapshot native methods right here — immediately before overwriting them —
+// so they are guaranteed to be (a) defined by the host and (b) not yet wrapped.
+// Capturing earlier (module top-level) risks undefined methods on WKWebView;
+// using lazy getters risks infinite recursion once console.* is overwritten.
+if (typeof window !== 'undefined' && !window.__console_intercepted__) {
+    const _log = console.log && console.log.bind(console) || (() => { });
+    const _warn = console.warn && console.warn.bind(console) || (() => { });
+    const _error = console.error && console.error.bind(console) || (() => { });
+    const _info = console.info && console.info.bind(console) || (() => { });
+    const _debug = console.debug && console.debug.bind(console) || (() => { });
+
+    console.log = (...args) => { _log(...args); captureLog('log', args); };
+    console.warn = (...args) => { _warn(...args); captureLog('warn', args); };
+    console.error = (...args) => { _error(...args); captureLog('error', args); };
+    console.info = (...args) => { _info(...args); captureLog('info', args); };
+    console.debug = (...args) => { _debug(...args); captureLog('debug', args); };
+
+    window.addEventListener('error', (event) => {
+        if (!window.AnkiFX_Config?.debug) return;
+        let errMsg = event.message;
+        if (event.error) {
+            const name = event.error.name || 'Error';
+            const message = event.error.message || event.message || '';
+            const stack = event.error.stack || '';
+            if (stack && !stack.includes(message)) {
+                errMsg = `${name}: ${message}\n${stack}`;
+            } else {
+                errMsg = stack || `${name}: ${message}`;
+            }
+        }
+        captureLog('error', [errMsg]);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        if (!window.AnkiFX_Config?.debug) return;
+        captureLog('error', [`Unhandled Promise Rejection: ${event.reason}`]);
+    });
+
+    window.__console_intercepted__ = true;
+}
+
 export const effect = {
     id: 'debug',
     name: 'DEBUG',
@@ -23,6 +103,17 @@ export const effect = {
             label: '📋 COPY LOGS',
             onClick: () => {
                 copyLogsToClipboard();
+            }
+        },
+        {
+            type: 'button',
+            id: 'clear-storage-btn',
+            label: '🧹 CLEAR STORAGE',
+            onClick: () => {
+                if (confirm('Clear ALL AnkiFX local storage?')) {
+                    localStorage.clear();
+                    location.reload();
+                }
             }
         }
     ]
@@ -57,7 +148,16 @@ export function runDebug(contexts, config) {
     cols.appendChild(rightCol);
 
     // Left Column Panels
-    // 1. Viewport & Layout Info
+    // 1. Engine Diagnostics & History Combined (at the top)
+    const diagnosticsPanel = document.createElement('div');
+    diagnosticsPanel.className = 'afx-debug-panel diagnostics';
+    diagnosticsPanel.innerHTML = '<h3>AnkiFX Version</h3>';
+    const diagnosticsContent = document.createElement('div');
+    diagnosticsContent.className = 'afx-debug-content';
+    diagnosticsPanel.appendChild(diagnosticsContent);
+    leftCol.appendChild(diagnosticsPanel);
+
+    // 2. Viewport & Layout Info (below Diagnostics)
     const viewportPanel = document.createElement('div');
     viewportPanel.className = 'afx-debug-panel viewport-info';
     viewportPanel.innerHTML = '<h3>Viewport & Layout</h3>';
@@ -66,26 +166,8 @@ export function runDebug(contexts, config) {
     viewportPanel.appendChild(viewportContent);
     leftCol.appendChild(viewportPanel);
 
-    // 2. Engine Diagnostics
-    const diagnosticsPanel = document.createElement('div');
-    diagnosticsPanel.className = 'afx-debug-panel diagnostics';
-    diagnosticsPanel.innerHTML = '<h3>AnkiFX Diagnostics</h3>';
-    const diagnosticsContent = document.createElement('pre');
-    diagnosticsContent.className = 'afx-debug-content';
-    diagnosticsPanel.appendChild(diagnosticsContent);
-    leftCol.appendChild(diagnosticsPanel);
-
     // Right Column Panels
-    // 3. Engine Evaluation History
-    const historyPanel = document.createElement('div');
-    historyPanel.className = 'afx-debug-panel history';
-    historyPanel.innerHTML = '<h3>Evaluation History</h3>';
-    const historyContent = document.createElement('div');
-    historyContent.className = 'afx-debug-content';
-    historyPanel.appendChild(historyContent);
-    rightCol.appendChild(historyPanel);
-
-    // 4. Chronological Loader Logs
+    // 3. Chronological Loader Logs (at the top of right column)
     const logsPanel = document.createElement('div');
     logsPanel.className = 'afx-debug-panel logs';
     logsPanel.innerHTML = '<h3>Chronological Loader Logs</h3>';
@@ -93,6 +175,122 @@ export function runDebug(contexts, config) {
     logsContent.className = 'afx-debug-content';
     logsPanel.appendChild(logsContent);
     rightCol.appendChild(logsPanel);
+
+    // 4. LocalStorage Viewer Panel (below Chronological Loader Logs)
+    const localStoragePanel = document.createElement('div');
+    localStoragePanel.className = 'afx-debug-panel localstorage-viewer';
+    localStoragePanel.innerHTML = '<h3>LocalStorage</h3>';
+    const storageContent = document.createElement('div');
+    storageContent.className = 'afx-debug-content';
+    localStoragePanel.appendChild(storageContent);
+    rightCol.appendChild(localStoragePanel);
+
+    // Bottom: Console Logs (Full Width)
+    const consolePanel = document.createElement('div');
+    consolePanel.className = 'afx-debug-panel console-logs';
+    consolePanel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 4px; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <h3 style="margin: 0; border: none; padding: 0; color: #ff5555;">Console Logs</h3>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <button class="afx-console-filter-btn active" data-filter="all" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-family: monospace;">ALL</button>
+                <button class="afx-console-filter-btn" data-filter="log" style="background: rgba(255,255,255,0.05); border: 1px solid transparent; color: #888; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-family: monospace;">LOG</button>
+                <button class="afx-console-filter-btn" data-filter="warn" style="background: rgba(255,255,255,0.05); border: 1px solid transparent; color: #888; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-family: monospace;">WARN</button>
+                <button class="afx-console-filter-btn" data-filter="error" style="background: rgba(255,255,255,0.05); border: 1px solid transparent; color: #888; font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-family: monospace;">ERROR</button>
+                <button id="afx-clear-console-btn" style="background: rgba(255, 85, 85, 0.2); border: 1px solid rgba(255, 85, 85, 0.4); color: #ff5555; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; cursor: pointer; margin-left: 10px; font-family: monospace;">CLEAR</button>
+            </div>
+        </div>
+        <div id="afx-console-log-list" class="afx-debug-content" style="max-height: 250px; overflow-y: auto; font-family: monospace; margin-bottom: 8px;"></div>
+        <div style="display: flex; gap: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px; align-items: center;">
+            <span style="color: #00ffff; font-weight: bold; font-family: monospace;">&gt;</span>
+            <input type="text" id="afx-console-input" placeholder="Execute JS (e.g. window.location.href)" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-family: monospace; font-size: 11px; padding: 4px 8px; border-radius: 4px; outline: none; box-sizing: border-box;">
+            <button id="afx-console-exec-btn" style="background: #28a745; color: #fff; border: none; font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: monospace;">EXEC</button>
+        </div>
+    `;
+    debugContainer.appendChild(consolePanel);
+
+    // Spacer to prevent overlap with Anki bottom review bar and dock (WebKit flex padding bug fix)
+    const bottomSpacer = document.createElement('div');
+    bottomSpacer.style.height = 'calc(var(--bottom-inset, 0px) + var(--afx-dock-height, 0px) + 20px)';
+    bottomSpacer.style.flexShrink = '0';
+    bottomSpacer.style.pointerEvents = 'none';
+    debugContainer.appendChild(bottomSpacer);
+
+    // Console Event Bindings
+    const filterBtns = consolePanel.querySelectorAll('.afx-console-filter-btn');
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filterBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'rgba(255,255,255,0.05)';
+                b.style.borderColor = 'transparent';
+                b.style.color = '#888';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'rgba(255,255,255,0.15)';
+            btn.style.borderColor = 'rgba(255,255,255,0.25)';
+            btn.style.color = '#fff';
+            currentFilter = btn.getAttribute('data-filter');
+        });
+    });
+
+    const clearConsoleBtn = consolePanel.querySelector('#afx-clear-console-btn');
+    if (clearConsoleBtn) {
+        clearConsoleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            capturedLogs.length = 0;
+        });
+    }
+
+    const execInput = consolePanel.querySelector('#afx-console-input');
+    const execBtn = consolePanel.querySelector('#afx-console-exec-btn');
+
+    const executeInput = () => {
+        if (!execInput) return;
+        const code = execInput.value.trim();
+        if (!code) return;
+
+        // Log the command itself
+        captureLog('log', [`> ${code}`]);
+
+        try {
+            // Run eval in global scope
+            const result = (0, eval)(code);
+            captureLog('info', ['=>', result]);
+        } catch (err) {
+            captureLog('error', [err.stack || err.message || err]);
+        }
+
+        execInput.value = '';
+        execInput.focus();
+    };
+
+    if (execBtn && execInput) {
+        // Prevent key events from bubbling up to Anki
+        ['keydown', 'keyup', 'keypress'].forEach(evtType => {
+            execInput.addEventListener(evtType, (e) => {
+                e.stopPropagation();
+            });
+        });
+
+        execInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                executeInput();
+            }
+        });
+
+        execBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            executeInput();
+        });
+    }
+
+    // Append main container to ankifx-overlay (so it participates in overlay stacking context)
+    const overlayEl = document.getElementById('ankifx-overlay') || document.body;
+    overlayEl.appendChild(debugContainer);
+
+    const parentEl = document.getElementById('ankifx-background') || document.body;
 
     // Corner Markers
     const corners = {
@@ -108,7 +306,7 @@ export function runDebug(contexts, config) {
     corners.bottomLeft.style.bottom = 'auto';
     corners.bottomRight.style.bottom = 'auto';
 
-    Object.values(corners).forEach(el => debugContainer.appendChild(el));
+    Object.values(corners).forEach(el => parentEl.appendChild(el));
 
     // Lines & Labels
     const visibleLine = document.createElement('div');
@@ -117,22 +315,19 @@ export function runDebug(contexts, config) {
     visibleLabel.className = 'afx-debug-line-label';
     visibleLabel.textContent = '--- VISIBLE DOCUMENT BOTTOM ---';
     visibleLine.appendChild(visibleLabel);
-    debugContainer.appendChild(visibleLine);
-
-    // Append main container to contexts.canvas2D.parentElement (ankifx-background)
-    const parentEl = contexts.canvas2D.parentElement || document.body;
-    parentEl.appendChild(debugContainer);
+    parentEl.appendChild(visibleLine);
 
     let lastTime = 0;
     let frameCount = 0;
     let fps = 0;
 
-    // Reconciliation cache keys to prevent unneeded textContent/innerHTML writes
+    // Reconciliation cache keys to prevent unneeded writes
     let lastViewportText = '';
     let lastDiagnosticsText = '';
-    let lastHistoryKey = '';
     let lastLogsKey = '';
     let lastCornersText = '';
+    let lastConsoleKey = '';
+    let lastLocalStorageKey = '';
 
     function render(timestamp) {
         if (timestamp === undefined) timestamp = performance.now();
@@ -179,38 +374,62 @@ export function runDebug(contexts, config) {
             lastViewportText = viewportText;
         }
 
-        // Update Diagnostics
+        // Update Diagnostics & History Combined
+        const history = window.AnkiFX_Eval_History || [];
+        const historyKey = JSON.stringify(history);
         const diagnosticsText = [
             `Version:  ${window.AnkiFX?.version || '1.0.0-dev'}`,
             `Source:   ${window.AnkiFX?.source || 'unknown'}`,
             `Built:    ${window.AnkiFX?.buildDate || 'development'}`
         ].join('\n');
 
-        if (diagnosticsText !== lastDiagnosticsText) {
-            diagnosticsContent.textContent = diagnosticsText;
-            lastDiagnosticsText = diagnosticsText;
-        }
+        const combinedDiagnosticsKey = diagnosticsText + '_' + historyKey;
+        if (combinedDiagnosticsKey !== lastDiagnosticsText) {
+            diagnosticsContent.innerHTML = '';
 
-        // Update Evaluation History
-        const history = window.AnkiFX_Eval_History || [];
-        const historyKey = JSON.stringify(history);
-        if (historyKey !== lastHistoryKey) {
-            historyContent.innerHTML = '';
+            // Render basic diagnostics
+            const metricsPre = document.createElement('pre');
+            metricsPre.style.margin = '0 0 10px 0';
+            metricsPre.style.fontFamily = 'inherit';
+            metricsPre.style.fontSize = 'inherit';
+            metricsPre.textContent = diagnosticsText;
+            diagnosticsContent.appendChild(metricsPre);
+
+            // Divider line
+            const divider = document.createElement('div');
+            divider.style.borderTop = '1px dashed rgba(255,255,255,0.15)';
+            divider.style.margin = '10px 0';
+            diagnosticsContent.appendChild(divider);
+
+            // Title
+            const historyTitle = document.createElement('div');
+            historyTitle.textContent = 'EVALUATION HISTORY:';
+            historyTitle.style.fontWeight = 'bold';
+            historyTitle.style.color = '#00ffff';
+            historyTitle.style.marginBottom = '6px';
+            historyTitle.style.fontSize = '11px';
+            diagnosticsContent.appendChild(historyTitle);
+
+            // History logs
+            const historyList = document.createElement('div');
             if (history.length === 0) {
                 const emptyMsg = document.createElement('div');
                 emptyMsg.textContent = '(No evaluation history captured)';
                 emptyMsg.style.color = '#888';
                 emptyMsg.style.fontStyle = 'italic';
-                historyContent.appendChild(emptyMsg);
+                historyList.appendChild(emptyMsg);
             } else {
                 history.slice(-3).forEach((h, idx) => {
                     const line = document.createElement('div');
                     line.textContent = `[${idx + 1}] ${h.source} (${h.version}) @ ${h.time} - ${h.status}`;
                     line.style.color = h.status === 'active' ? '#55ff55' : '#ffaa55';
-                    historyContent.appendChild(line);
+                    line.style.fontSize = '11px';
+                    historyList.appendChild(line);
                 });
             }
-            lastHistoryKey = historyKey;
+            diagnosticsContent.appendChild(historyList);
+
+            lastDiagnosticsText = combinedDiagnosticsKey;
         }
 
         // Update Loader Logs
@@ -225,15 +444,137 @@ export function runDebug(contexts, config) {
                 emptyMsg.style.fontStyle = 'italic';
                 logsContent.appendChild(emptyMsg);
             } else {
-                logs.slice(-12).forEach((log, idx) => {
+                // Level → { color, badge } map. Handles structured { msg, level } objects
+                // and falls back gracefully for legacy plain strings.
+                const LEVEL_STYLE = {
+                    success: { color: '#55ff55', badge: '✓' },
+                    error: { color: '#ff5555', badge: '✗' },
+                    warn: { color: '#ffaa55', badge: '!' },
+                    pending: { color: '#888888', badge: '…' },
+                    info: { color: '#dddddd', badge: '·' },
+                };
+
+                logs.forEach((log, idx) => {
+                    const isObj = log && typeof log === 'object';
+                    const msg = isObj ? log.msg : String(log);
+                    const style = LEVEL_STYLE[isObj ? log.level : 'info'] || LEVEL_STYLE.info;
+
                     const line = document.createElement('div');
-                    line.textContent = `[${idx + 1}] ${log}`;
-                    const isError = log.includes('fail') || log.includes('Error') || log.includes('offline') || log.includes('warn');
-                    line.style.color = isError ? '#ff5555' : '#55ff55';
+                    line.style.cssText = 'display: flex; gap: 6px; align-items: baseline; font-size: 11px; margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.04);';
+
+                    const stepSpan = document.createElement('span');
+                    stepSpan.textContent = `[${String(idx + 1).padStart(2, '0')}]`;
+                    stepSpan.style.cssText = 'color: #555; flex-shrink: 0; font-size: 10px;';
+
+                    const badgeSpan = document.createElement('span');
+                    badgeSpan.textContent = style.badge;
+                    badgeSpan.style.cssText = `color: ${style.color}; flex-shrink: 0; font-weight: bold; width: 10px;`;
+
+                    const msgSpan = document.createElement('span');
+                    msgSpan.textContent = msg;
+                    msgSpan.style.cssText = `color: ${style.color}; word-break: break-word;`;
+
+                    line.appendChild(stepSpan);
+                    line.appendChild(badgeSpan);
+                    line.appendChild(msgSpan);
                     logsContent.appendChild(line);
                 });
             }
             lastLogsKey = logsKey;
+        }
+
+        // Update LocalStorage Viewer Panel
+        const storageItems = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            storageItems[key] = localStorage.getItem(key);
+        }
+        const localStorageKey = JSON.stringify(storageItems);
+        if (localStorageKey !== lastLocalStorageKey) {
+            storageContent.innerHTML = '';
+            const keys = Object.keys(storageItems).sort();
+            if (keys.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.textContent = '(LocalStorage is empty)';
+                emptyMsg.style.color = '#888';
+                emptyMsg.style.fontStyle = 'italic';
+                emptyMsg.style.fontSize = '11px';
+                storageContent.appendChild(emptyMsg);
+            } else {
+                keys.forEach(k => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;';
+
+                    const keySpan = document.createElement('span');
+                    keySpan.textContent = k;
+                    keySpan.style.color = '#ffaa55';
+                    keySpan.style.wordBreak = 'break-all';
+                    keySpan.style.marginRight = '8px';
+
+                    const valSpan = document.createElement('span');
+                    valSpan.textContent = storageItems[k];
+                    valSpan.style.color = '#00ffff';
+                    valSpan.style.wordBreak = 'break-all';
+                    valSpan.style.textAlign = 'right';
+
+                    row.appendChild(keySpan);
+                    row.appendChild(valSpan);
+                    storageContent.appendChild(row);
+                });
+            }
+            lastLocalStorageKey = localStorageKey;
+        }
+
+        // Update Console Logs Panel
+        const filteredLogs = capturedLogs.filter(log => {
+            if (currentFilter === 'all') return true;
+            return log.type === currentFilter;
+        });
+        const consoleKey = currentFilter + '_' + JSON.stringify(filteredLogs);
+        if (consoleKey !== lastConsoleKey) {
+            const listEl = document.getElementById('afx-console-log-list');
+            if (listEl) {
+                listEl.innerHTML = '';
+                if (filteredLogs.length === 0) {
+                    const emptyMsg = document.createElement('div');
+                    emptyMsg.textContent = `(No logs in category: ${currentFilter})`;
+                    emptyMsg.style.color = '#888';
+                    emptyMsg.style.fontStyle = 'italic';
+                    emptyMsg.style.fontSize = '11px';
+                    listEl.appendChild(emptyMsg);
+                } else {
+                    filteredLogs.forEach(log => {
+                        const line = document.createElement('div');
+                        line.style.marginBottom = '4px';
+                        line.style.fontSize = '11px';
+                        line.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+                        line.style.paddingBottom = '2px';
+
+                        const timeSpan = document.createElement('span');
+                        timeSpan.textContent = `[${log.timestamp}] `;
+                        timeSpan.style.color = '#888';
+                        line.appendChild(timeSpan);
+
+                        const msgSpan = document.createElement('span');
+                        msgSpan.textContent = log.message;
+                        if (log.type === 'error') {
+                            msgSpan.style.color = '#ff5555';
+                        } else if (log.type === 'warn') {
+                            msgSpan.style.color = '#ffaa55';
+                        } else if (log.type === 'info' || log.type === 'debug') {
+                            msgSpan.style.color = '#00ffff';
+                        } else {
+                            msgSpan.style.color = '#ffffff';
+                        }
+                        line.appendChild(msgSpan);
+
+                        listEl.appendChild(line);
+                    });
+                    // Auto-scroll to bottom
+                    listEl.scrollTop = listEl.scrollHeight;
+                }
+            }
+            lastConsoleKey = consoleKey;
         }
 
         // Update Corner Markers text
@@ -266,6 +607,8 @@ export function stopDebug() {
         debugContainer.remove();
         debugContainer = null;
     }
+    // Clean up corners and visible line from parentEl
+    document.querySelectorAll('.afx-debug-corner, .afx-debug-line').forEach(el => el.remove());
 }
 
 function copyLogsToClipboard() {
@@ -295,13 +638,13 @@ function copyLogsToClipboard() {
             textArea.style.opacity = '0';
             textArea.style.pointerEvents = 'none';
             document.body.appendChild(textArea);
-            
+
             textArea.focus();
             textArea.select();
-            
+
             const success = document.execCommand('copy');
             document.body.removeChild(textArea);
-            
+
             if (success) {
                 return Promise.resolve();
             }

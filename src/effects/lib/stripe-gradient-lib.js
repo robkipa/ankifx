@@ -37,7 +37,7 @@ class MiniGl {
                             context.shaderSource(shader, source);
                             context.compileShader(shader);
                             if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
-                                console.error("Shader compilation error:", context.getShaderInfoLog(shader));
+                                console.error('[Gradient/WebGL] Shader compile error:', context.getShaderInfoLog(shader));
                             }
                             return shader;
                         }
@@ -57,7 +57,7 @@ class MiniGl {
                         context.attachShader(material.program, material.fragmentShader);
                         context.linkProgram(material.program);
                         if (!context.getProgramParameter(material.program, context.LINK_STATUS)) {
-                            console.error("Program link error:", context.getProgramInfoLog(material.program));
+                            console.error('[Gradient/WebGL] Program link error:', context.getProgramInfoLog(material.program));
                         }
                         context.useProgram(material.program);
                         material.attachUniforms(undefined, _miniGl.commonUniforms);

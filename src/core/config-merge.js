@@ -43,7 +43,7 @@ export function resolveActiveEffect(config) {
     }
 
     if (!EFFECTS[activeEffect]) {
-        console.warn(`AnkiFX: Stale or invalid activeEffect "${activeEffect}" detected. Falling back to default.`);
+        console.warn(`[AnkiFX] Unknown effect "${activeEffect}" — falling back to "${config.defaultEffect || 'geometry'}".`);
         activeEffect = config.defaultEffect || 'geometry';
         if (!EFFECTS[activeEffect]) {
             activeEffect = Object.keys(EFFECTS)[0] || 'geometry';

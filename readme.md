@@ -15,7 +15,12 @@ Now, the project is open to the public so anyone can inject stunning, high-perfo
 *   **Unified Canvas Architecture**: Uses a persistent, HDPi-compliant `WebGL` and `Canvas2D` context system. Background effects switch instantly without recreating the canvas or losing study focus.
 *   **Dynamic Effect Registry**: Effects are auto-discovered during the build process and registered via an auto-generated `registry.js`. Adding a new effect is as simple as dropping a `.js` file into `src/effects/`.
 *   **Auto-Maximizing Viewport Sizing**: An engine-level auto-calibration system designed to solve complex iOS/AnkiMobile viewport height and offset issues. It dynamically adjusts the `--afx-viewport-height` CSS variable based on the native `--io-header` to guarantee perfect edge-to-edge rendering behind Anki's native UI bars.
-    *   **Debug Mode**: Setting `debug: true` in your deck configuration payload displays a styled **Clear Storage** button directly inside the control deck (above the effect picker, visible only when the 'Debug' effect is active) to clear your local storage preferences in one tap.
+    *   **Debug Mode**: Setting `debug: true` in your deck configuration payload enables the **DEBUG** effect, which opens a comprehensive real-time dashboard on mobile and desktop:
+        *   **AnkiFX Version**: Displays the active engine version, source, build date, and evaluation history.
+        *   **Viewport & Layout**: Displays window, screen, and document viewport metrics in real-time.
+        *   **Chronological Loader Logs**: Lists template loading events and error logs.
+        *   **LocalStorage Viewer**: Displays sorted key-value pairs of localStorage in real-time, showing direct evidence of preferences and terms agreement.
+        *   **Console Logs (Full-Width)**: A custom scrollable panel capturing console outputs (`log`, `warn`, `error`, etc.), unhandled exceptions, and unhandled promise rejections, complete with level filtering and a global-scope JavaScript execution command line.
 *   **Canvas Visualizers**: Thirteen high-performance background effects:
     *   *Aurora*: Organic, noise-based northern lights simulation (optimized for mobile).
     *   *ECG*: Blood-red cardiac monitor visualizer effect with PQRST waveforms, phosphor fade trail, alternating arrhythmias (including AV blocks, STEMI, AFib, Flutter, and Torsades), and an interactive trigger toggle button.

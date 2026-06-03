@@ -251,7 +251,7 @@ function compileShader(type, source) {
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+        console.error('[LavaLamp/WebGL] Shader compile error:', gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
     }
@@ -268,7 +268,7 @@ function initWebGL() {
     gl.linkProgram(program);
     
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.error('Program link error:', gl.getProgramInfoLog(program));
+        console.error('[LavaLamp/WebGL] Program link error:', gl.getProgramInfoLog(program));
         return false;
     }
     
@@ -305,7 +305,7 @@ export function runLavalamp(contexts, config) {
     currentH = contexts.height;
     
     if (!gl) {
-        console.error("WebGL context required for Lava Lamp");
+        console.error('[LavaLamp] WebGL context required — cannot run effect.');
         return;
     }
     

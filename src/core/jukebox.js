@@ -33,7 +33,7 @@ export class Jukebox {
             );
             this.hasFetchedIndex = true;
         } catch (e) {
-            console.warn("Jukebox offline or failed to fetch index:", e);
+            console.warn('[Jukebox] Offline or failed to fetch track index:', e.message);
             this.trackList = []; // silent fail
             this.onError("NO INTERNET OR BLOCKED ... TRY AGAIN?");
             throw e; // throw so playNext sees it
@@ -51,7 +51,7 @@ export class Jukebox {
             }
 
             if (this.trackList.length === 0) {
-                console.warn("No tracks available in Jukebox.");
+                console.warn('[Jukebox] Track list is empty — no tracks to play.');
                 return;
             }
 
@@ -67,17 +67,17 @@ export class Jukebox {
                 });
                 
                 if (matches.length === 0) {
-                    console.warn("Jukebox: NO matches found for target object:", target);
+                    console.warn('[Jukebox] No matches for target object — playing random:', target);
                 } else if (matches.length > 1) {
-                    console.warn(`Jukebox: ${matches.length} matches found. Refine your search!`, matches);
+                    console.warn(`[Jukebox] ${matches.length} ambiguous matches for target object — using first. Refine your search:`, matches);
                 }
                 track = matches[0] || null;
             } else if (target && typeof target === 'string') {
                 const matches = this.trackList.filter(t => t.title && t.title.toLowerCase() === target.toLowerCase());
                 if (matches.length === 0) {
-                    console.warn("Jukebox: NO matches found for target title string:", target);
+                    console.warn('[Jukebox] No matches for target title string — playing random:', target);
                 } else if (matches.length > 1) {
-                    console.warn(`Jukebox: ${matches.length} matches found for title string.`, matches);
+                    console.warn(`[Jukebox] ${matches.length} ambiguous matches for title string — using first:`, matches);
                 }
                 track = matches[0] || null;
             }
@@ -111,7 +111,7 @@ export class Jukebox {
 
             await this._playTrack(track, opId);
         } catch (e) {
-            console.warn("Jukebox track fetch failed:", e);
+            console.warn('[Jukebox] Track fetch failed — network issue?', e.message);
             this.onError("NO INTERNET OR BLOCKED ... TRY AGAIN?");
         }
     }
@@ -125,7 +125,7 @@ export class Jukebox {
             try {
                 await this._playTrack(track, opId);
             } catch (e) {
-                console.warn("Jukebox track fetch failed:", e);
+                console.warn('[Jukebox] Previous track fetch failed:', e.message);
                 this.onError("NO INTERNET OR BLOCKED ... TRY AGAIN?");
             }
         }
@@ -145,7 +145,7 @@ export class Jukebox {
         try {
             loaded = FlodPlayer.load(arrayBuffer);
         } catch (e) {
-            console.warn("Jukebox: unsupported format for track, skipping:", track.title, e.message);
+            console.warn(`[Jukebox] Unsupported format for "${track.title}" — skipping:`, e.message);
             if (opId === this._opId) setTimeout(() => this.playNext(), 100);
             return;
         }

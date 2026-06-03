@@ -32,3 +32,34 @@ AnkiFX is a visuals-heavy project. Always prioritize rich aesthetics, smooth ani
 4. **Gradient / MiniGl**: Logic lives in `src/effects/lib/stripe-gradient-lib.js`. The adapter must keep `new Gradient(contexts.canvasGL, contexts.gl, contexts.width, contexts.height)` — do not rewire canvas ownership without full visual QA.
 5. **Mobile answer reveals**: Engine overlay uses delegated `stopPropagation` on controls. Any effect `window` listeners must not steal taps intended to flip the card after the user has agreed to terms.
 6. **Viewport Tuning**: Respect `--afx-viewport-height` for full-screen layouts.
+
+## 6. Logging Conventions
+
+All `console.*` calls **must** include a bracketed subsystem prefix so messages are identifiable in the debug panel console. Use the exact prefixes below — do not invent new ones without updating this list:
+
+| Subsystem | Prefix |
+|---|---|
+| Core engine lifecycle | `[AnkiFX]` |
+| WebGL utils (shared) | `[AnkiFX/WebGL]` |
+| Jukebox / BGM | `[Jukebox]` |
+| Lava Lamp effect | `[LavaLamp/WebGL]` |
+| Stripe Gradient / MiniGl | `[Gradient/WebGL]` |
+| New effects | `[EffectName]` or `[EffectName/WebGL]` |
+
+**Rules:**
+1. **Level discipline**: use `console.error` for unrecoverable failures, `console.warn` for degraded-but-continuing states, `console.log` for lifecycle milestones only. Do not `console.log` inside hot render/animation loops.
+2. **Error objects**: log `e.message` (not the raw Error object) to keep output readable on mobile/WKWebView.
+3. **Console intercept safety**: `debug.js` installs a console intercept. Never snapshot `console.*` methods at module top-level — WKWebView may not have initialised them yet. Always bind inside an `if (!window.__console_intercepted__)` guard, and include a `|| (() => {})` fallback.
+
+**Loader logs (card templates only):**
+Use the `afxLog(msg, level)` helper — never push raw strings into `window.AnkiFX_Loader_Logs`. Valid levels: `"success"`, `"error"`, `"warn"`, `"pending"`, `"info"`.
+
+```js
+// ✅ correct
+afxLog("AnkiFX.init() success.", "success");
+afxLog("AnkiFX init error: " + e.message, "error");
+
+// ❌ wrong — plain string loses level metadata
+window.AnkiFX_Loader_Logs.push("AnkiFX.init() success.");
+```
+

@@ -8,7 +8,7 @@ export function createFullscreenProgram(gl, vsSource, fsSource) {
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.error('AnkiFX shader compile:', gl.getShaderInfoLog(shader));
+            console.error('[AnkiFX/WebGL] Shader compile error:', gl.getShaderInfoLog(shader));
         }
         return shader;
     }
@@ -18,7 +18,7 @@ export function createFullscreenProgram(gl, vsSource, fsSource) {
     gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fsSource));
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.error('AnkiFX program link:', gl.getProgramInfoLog(program));
+        console.error('[AnkiFX/WebGL] Program link error:', gl.getProgramInfoLog(program));
     }
     gl.useProgram(program);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());

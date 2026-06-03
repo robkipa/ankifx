@@ -11,6 +11,7 @@
     --afx-body-color: #fff;
     --afx-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.6);
     --afx-none-bg: var(--afx-bg-color, black);
+    --afx-mono-font: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Monaco, monospace;
 }
 
 /* --- THEME REACTIVITY --- */
@@ -269,7 +270,7 @@ body>*,
     height: 100%;
     cursor: pointer;
     text-transform: uppercase;
-    font-family: 'Courier New', Courier, monospace !important;
+    font-family: var(--afx-mono-font) !important;
     font-size: var(--afx-picker-font-size) !important;
     font-weight: bold !important;
     padding: 0 15px;
@@ -287,7 +288,7 @@ body>*,
     border: none;
     padding: 0 !important;
     margin: 0 !important;
-    font-family: 'Courier New', monospace;
+    font-family: var(--afx-mono-font);
     font-weight: bold;
     cursor: pointer;
     outline: none;
@@ -303,7 +304,7 @@ body>*,
     background: #1a1a1a !important;
     color: #ffffff !important;
     padding: 12px !important;
-    font-family: 'Courier New', monospace !important;
+    font-family: var(--afx-mono-font) !important;
 }
 
 .afx-range-slider {
@@ -316,14 +317,14 @@ body>*,
 .afx-slider-label {
     font-size: 10px !important;
     color: #00ffff;
-    font-family: 'Courier New', monospace;
+    font-family: var(--afx-mono-font);
     white-space: nowrap;
 }
 
 .afx-slider-val-text {
     font-size: 10px !important;
     color: #00ffff;
-    font-family: 'Courier New', monospace;
+    font-family: var(--afx-mono-font);
     text-align: right;
 }
 
@@ -353,7 +354,7 @@ body>*,
 }
 
 .afx-terms {
-    font-family: 'Courier New', monospace;
+    font-family: var(--afx-mono-font);
     background: rgba(0, 0, 0, 0.4);
     padding: 1.5rem;
     border-radius: 24px 24px 0 0;
@@ -386,7 +387,7 @@ body>*,
 .afx-select,
 .afx-sub-picker,
 .afx-control-row {
-    font-family: 'Courier New', Courier, monospace !important;
+    font-family: var(--afx-mono-font) !important;
     font-size: var(--afx-picker-font-size) !important;
     font-weight: bold !important;
 }
@@ -557,7 +558,7 @@ html.afx-effect-debug #qa {
     flex-direction: column;
     align-items: flex-end;
     color: #ff1a1a;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--afx-mono-font);
     font-weight: 900 !important;
     line-height: 1.2;
     text-shadow: 0 0 8px rgba(255, 26, 26, 0.6), 0 2px 4px rgba(0, 0, 0, 0.9) !important;
@@ -635,16 +636,15 @@ html.afx-effect-debug #ankifx-background {
 }
 
 .afx-debug-container {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: var(--afx-viewport-height) !important;
-    max-height: var(--afx-viewport-height) !important;
-    z-index: 10;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
     box-sizing: border-box;
     overflow-y: auto !important;
-    padding: 70px 20px calc(var(--bottom-inset, 0px) + var(--afx-dock-height, 0px) + 20px) 20px;
+    padding: 70px 20px 0 20px;
     display: flex;
     flex-direction: column;
 }
@@ -682,7 +682,7 @@ html.afx-effect-debug .afx-debug-container {
     padding: 16px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
     pointer-events: auto;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--afx-mono-font);
 }
 
 .afx-debug-panel h3 {
@@ -693,20 +693,8 @@ html.afx-effect-debug .afx-debug-container {
     letter-spacing: 0.5px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     padding-bottom: 4px;
-}
-
-.afx-debug-panel.viewport-info h3,
-.afx-debug-panel.layout-metrics h3 {
-    color: #ff55ff;
-}
-
-.afx-debug-panel.diagnostics h3 {
-    color: #00ff00;
-}
-
-.afx-debug-panel.history h3,
-.afx-debug-panel.logs h3 {
-    color: #00ffff;
+    color: #00ff00; /* Unified header font color */
+    text-align: center;
 }
 
 .afx-debug-content {
@@ -717,6 +705,7 @@ html.afx-effect-debug .afx-debug-container {
     color: #ffffff;
     white-space: pre-wrap;
     word-break: break-all;
+    text-align: left;
 }
 
 .afx-debug-panel ::selection {
@@ -727,7 +716,7 @@ html.afx-effect-debug .afx-debug-container {
 /* Corner markers */
 .afx-debug-corner {
     position: absolute;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--afx-mono-font);
     font-size: 11px;
     font-weight: bold;
     color: #ff00ff;
@@ -758,7 +747,7 @@ html.afx-effect-debug .afx-debug-container {
 
 .afx-debug-line-label {
     position: absolute;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--afx-mono-font);
     font-size: 13px;
     font-weight: bold;
     transform: translateX(-50%);
@@ -777,4 +766,10 @@ html.afx-effect-debug .afx-debug-container {
         flex-direction: column;
         gap: 16px;
     }
+}
+
+/* Color overrides removed for unified headers styling */
+
+.afx-debug-panel.console-logs {
+    margin-top: 16px;
 }

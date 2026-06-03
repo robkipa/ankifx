@@ -43,7 +43,7 @@ const state = {
 // --- Core lifecycle ---
 
 function init(templateOptions = {}) {
-    console.log("AnkiFX: Initialized.");
+    console.log(`[AnkiFX] Init → v${AnkiFX.version} (${AnkiFX.source})`);
 
     const config = mergeAndHardenConfig(templateOptions);
 
@@ -187,7 +187,7 @@ function destroy() {
 
     state.currentEffectId = null;
 
-    console.log("AnkiFX: Destroyed.");
+    console.log('[AnkiFX] Destroyed.');
 }
 
 // --- Source detection ---
