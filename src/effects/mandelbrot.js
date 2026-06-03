@@ -208,7 +208,7 @@ export function runMandelbrot(contexts, config = {}) {
         };
 
         const handleMouseDown = (e) => {
-            if (e.target.closest('#afx-controls-dock') || e.target.closest('.afx-dialog')) return;
+            if (e.target.closest('#afx-bottom-dock') || e.target.closest('.afx-dialog')) return;
             const currentTime = (performance.now() * 0.001) - startTime;
             const { tx, ty } = getCoordsAt(e.clientX, e.clientY, currentTime);
             mandelbrotState.targetX = tx;

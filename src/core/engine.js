@@ -143,7 +143,7 @@ export class AnkiFX {
         const { overlay, background } = this.injectUI(config, isMobile, activeEffect);
 
         // --- NEW: ResizeObserver for dynamic safe bottom dock height ---
-        const dock = document.getElementById('afx-controls-dock');
+        const dock = document.getElementById('afx-bottom-dock');
         if (dock) {
             this.dockObserver = new ResizeObserver(() => {
                 const rect = dock.getBoundingClientRect();
@@ -283,7 +283,7 @@ export class AnkiFX {
                     TOTAL ADJ: <span id="afx-tuner-total-val" class="val">0</span>px
                 </div>
             `;
-                        const stack = document.querySelector('#afx-controls-dock .afx-control-group-right');
+                        const stack = document.querySelector('#afx-bottom-dock .afx-control-group-right');
             const selectorContainer = document.getElementById('afx-effect-selector-container');
             if (stack) {
                 if (selectorContainer) {
@@ -491,7 +491,7 @@ export class AnkiFX {
             `).join('');
 
         let dockHtml = `
-            <div id="afx-controls-dock">
+            <div id="afx-bottom-dock">
                 <div class="afx-control-group-left">
                     <div class="afx-control-row">
                         <label class="afx-toggle"><input type="checkbox" id="afx-text-toggle" ${marqueeEnabled ? 'checked' : ''}><span class="afx-slider"></span></label>
@@ -536,16 +536,7 @@ export class AnkiFX {
             `;
         }
 
-        let globalFpsHtml = "";
-        if (config.debug) {
-            globalFpsHtml = `
-                <div id="afx-global-fps" style="position: absolute; top: 10px; left: 10px; color: #0f0; font-family: monospace; font-size: 14px; font-weight: bold; text-shadow: 1px 1px 2px #000; z-index: 9999; pointer-events: none;">
-                     FPS: --
-                </div>
-            `;
-        }
-
-        overlay.innerHTML = dialogHtml + globalFpsHtml;
+        overlay.innerHTML = dialogHtml;
 
         // Inject corner controls (Toggles & Picker) directly into overlay
         const tempContainer = document.createElement('div');
@@ -580,7 +571,18 @@ export class AnkiFX {
 
         document.body.appendChild(overlay);
 
-        // Inject playback buttons
+        // Inject structured top dock layout
+        const topDock = document.createElement('div');
+        topDock.id = 'afx-top-dock';
+
+        const topLeftGroup = document.createElement('div');
+        topLeftGroup.className = 'afx-top-group-left';
+        topLeftGroup.id = 'afx-top-group-left';
+
+        const topRightGroup = document.createElement('div');
+        topRightGroup.className = 'afx-top-group-right';
+        topRightGroup.id = 'afx-top-group-right';
+
         const btnBack = document.createElement('button');
         btnBack.id = 'afx-btn-back';
         btnBack.className = 'afx-playback-btn';
@@ -591,8 +593,20 @@ export class AnkiFX {
         btnSkip.className = 'afx-playback-btn';
         btnSkip.textContent = '⏭️';
 
-        overlay.appendChild(btnBack);
-        overlay.appendChild(btnSkip);
+        topLeftGroup.appendChild(btnBack);
+        topRightGroup.appendChild(btnSkip);
+
+        if (config.debug) {
+            const fpsEl = document.createElement('div');
+            fpsEl.id = 'afx-global-fps';
+            fpsEl.style.cssText = 'color: #0f0; font-family: monospace; font-size: 14px; font-weight: bold; text-shadow: 1px 1px 2px #000; pointer-events: none;';
+            fpsEl.textContent = 'FPS: --';
+            topLeftGroup.appendChild(fpsEl);
+        }
+
+        topDock.appendChild(topLeftGroup);
+        topDock.appendChild(topRightGroup);
+        overlay.appendChild(topDock);
 
         // --- UNIVERSAL PROPAGATION STOPPER (AnkiMobile Fix) ---
         const stopProps = (e) => {
@@ -889,8 +903,14 @@ export class AnkiFX {
             this.marquee = null;
         }
 
-                // Clean up DOM elements
-        ['ankifx-overlay', 'ankifx-background', 'afx-tuner-ui', 'afx-btn-back', 'afx-btn-skip', 'afx-controls-dock'].forEach(id => {
+        // Move native elements back to body before destroying the container
+        const flag = document.getElementById('_flag');
+        const mark = document.getElementById('_mark');
+        if (flag) document.body.appendChild(flag);
+        if (mark) document.body.appendChild(mark);
+
+        // Clean up DOM elements
+        ['ankifx-overlay', 'ankifx-background', 'afx-tuner-ui', 'afx-btn-back', 'afx-btn-skip', 'afx-bottom-dock', 'afx-top-dock'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.remove();
         });
@@ -955,6 +975,24 @@ export class AnkiFX {
                 lastTime = timestamp;
             }
 
+            // Move native flag/mark into top dock groups if present
+            const flag = document.getElementById('_flag');
+            const mark = document.getElementById('_mark');
+            const leftGroup = document.getElementById('afx-top-group-left');
+            const rightGroup = document.getElementById('afx-top-group-right');
+            const btnSkip = document.getElementById('afx-btn-skip');
+
+            if (mark && leftGroup) {
+                const fpsEl = document.getElementById('afx-global-fps');
+                if (fpsEl && mark.nextSibling !== fpsEl) {
+                    leftGroup.insertBefore(mark, fpsEl);
+                } else if (!fpsEl && mark.parentElement !== leftGroup) {
+                    leftGroup.appendChild(mark);
+                }
+            }
+            if (flag && rightGroup && flag.parentElement !== rightGroup) {
+                rightGroup.insertBefore(flag, btnSkip);
+            }
             if (this.marquee && this.ctxMarquee) {
                 this.ctxMarquee.clearRect(0, 0, this.width, this.height);
                 

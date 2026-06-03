@@ -23,6 +23,14 @@ export function runECG(contexts, config) {
     currentW = contexts.width;
     currentH = contexts.height;
 
+    const rightGroup = document.getElementById('afx-top-group-right');
+    let ecgPanel = document.getElementById('afx-ecg-panel');
+    if (!ecgPanel && rightGroup) {
+        ecgPanel = document.createElement('div');
+        ecgPanel.id = 'afx-ecg-panel';
+        rightGroup.insertBefore(ecgPanel, rightGroup.firstChild);
+    }
+
     const initialRhythm = localStorage.getItem('ankifx_ecg_rhythm') || 'sinus';
     effect.controls = [
         {
@@ -251,24 +259,11 @@ export function runECG(contexts, config) {
         ctx.stroke();
     }
 
-    // --- Heart Rate & Rhythm Panel ---
-    function drawECGPanel() {
-        const fontSize = Math.max(16, Math.min(28, currentW * 0.04));
-        ctx.save();
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'top';
-
-        // 1. BPM Pulse display
-        const pulseGlow = bpmPulseAlpha * 15;
+    // --- Heart Rate & Rhythm Panel (DOM-based) ---
+    function updateECGPanelDOM() {
+        if (!ecgPanel) return;
         const baseAlpha = 0.5 + bpmPulseAlpha * 0.5;
-        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
-        ctx.fillStyle = `rgba(255, 26, 26, ${baseAlpha})`;
-        ctx.fillText(`♥ ${bpmDisplay} BPM`, currentW - 15, 15);
-
-        // 2. Rhythm classification tag
-        const tagSize = Math.max(11, Math.min(16, fontSize * 0.6));
-        ctx.font = `bold ${tagSize}px "Courier New", monospace`;
-        ctx.fillStyle = 'rgba(255, 26, 26, 0.7)';
+        ecgPanel.style.opacity = baseAlpha;
 
         let rhythmLabel = 'SINUS RHYTHM';
         if (currentRhythm === 'first_degree') rhythmLabel = '1° AV BLOCK';
@@ -280,8 +275,10 @@ export function runECG(contexts, config) {
         else if (currentRhythm === 'a_flutter') rhythmLabel = 'ATRIAL FLUTTER';
         else if (currentRhythm === 'torsades') rhythmLabel = 'TORSADES DE POINTES';
 
-        ctx.fillText(rhythmLabel, currentW - 15, 15 + fontSize + 4);
-        ctx.restore();
+        ecgPanel.innerHTML = `
+            <div class="afx-ecg-bpm">♥ ${bpmDisplay} BPM</div>
+            <div class="afx-ecg-rhythm">${rhythmLabel}</div>
+        `;
     }
 
     // --- Main Render ---
@@ -549,8 +546,8 @@ export function runECG(contexts, config) {
         ctx.fillRect(sweepPx - 3, 0, 6, currentH);
         ctx.restore();
 
-        // 5. Drawing ECG Panel overlays
-        drawECGPanel();
+        // 5. Updating ECG Panel overlays in DOM
+        updateECGPanelDOM();
 
         animationId = requestAnimationFrame(render);
     }
@@ -563,4 +560,6 @@ export function stopECG() {
         cancelAnimationFrame(animationId);
         animationId = null;
     }
+    const ecgPanel = document.getElementById('afx-ecg-panel');
+    if (ecgPanel) ecgPanel.remove();
 }

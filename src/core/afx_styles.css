@@ -131,7 +131,7 @@ body>*,
 /* --- GLOBAL VISIBILITY RULES --- */
 #afx-btn-back,
 #afx-btn-skip,
-#afx-controls-dock {
+#afx-bottom-dock {
     display: none !important;
 }
 
@@ -160,30 +160,44 @@ body>*,
 }
 
 /* Reveal corner controls only after agreement */
-.afx-agreed-state #afx-controls-dock {
+.afx-agreed-state #afx-bottom-dock {
     display: flex !important;
 }
 
-/* Navigation buttons (top corners) */
+/* Top dock container structure */
+#afx-top-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    display: none !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 20px 0 20px;
+    pointer-events: none;
+    z-index: 10001;
+    box-sizing: border-box;
+}
+
+.afx-agreed-state #afx-top-dock {
+    display: flex !important;
+}
+
+.afx-top-group-left,
+.afx-top-group-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: auto;
+}
+
 #afx-btn-back,
 #afx-btn-skip {
     pointer-events: auto !important;
-    position: fixed !important;
-    z-index: 10001 !important;
+    position: static !important;
 }
 
-/* Precise Pinned Positioning */
-#afx-btn-back {
-    top: 20px;
-    left: 20px;
-}
-
-#afx-btn-skip {
-    top: 20px;
-    right: 20px;
-}
-
-#afx-controls-dock {
+#afx-bottom-dock {
     position: fixed;
     left: 0;
     right: 0;
@@ -308,14 +322,8 @@ body>*,
 }
 
 @media (max-width: 768px) {
-    #afx-btn-back {
-        top: calc(10px + env(safe-area-inset-top)) !important;
-        left: calc(10px + env(safe-area-inset-left)) !important;
-    }
-
-    #afx-btn-skip {
-        top: calc(10px + env(safe-area-inset-top)) !important;
-        right: calc(10px + env(safe-area-inset-right)) !important;
+    #afx-top-dock {
+        padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left)) !important;
     }
 }
 
@@ -546,4 +554,96 @@ html.afx-agreed #afx-tuner-ui.active {
     opacity: 0.7;
     margin-top: 4px;
     display: block;
+}
+
+/* --- Native Anki Card Elements (Flag & Mark) --- */
+#_flag,
+#_mark {
+    position: static !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    font-size: 24px !important;
+    line-height: 1 !important;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Explicitly support hidden attribute and unflagged style to override display: inline-flex */
+#_flag[hidden],
+#_mark[hidden],
+#_flag[style*="var(--flag-0)"] {
+    display: none !important;
+}
+
+#_flag:hover,
+#_mark:hover {
+    transform: scale(1.25) !important;
+}
+
+/* Satisfying interactive click/toggle shrink feedback */
+#_flag:active,
+#_mark:active {
+    transform: scale(0.8) !important;
+    opacity: 0.6 !important;
+}
+
+/* Satisfying pop-in activation transition when shown */
+#_flag:not([hidden]):not([style*="var(--flag-0)"]),
+#_mark:not([hidden]) {
+    animation: afx-pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes afx-pop-in {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    75% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* ECG Status Panel inside Top Right Group */
+#afx-ecg-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    color: #ff1a1a;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 900 !important;
+    line-height: 1.2;
+    text-shadow: 0 0 8px rgba(255, 26, 26, 0.6), 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+    transition: opacity 0.2s ease;
+}
+
+#afx-ecg-panel .afx-ecg-bpm {
+    font-size: 1.35rem;
+    font-weight: 900 !important;
+}
+
+#afx-ecg-panel .afx-ecg-rhythm {
+    font-size: 0.9rem;
+    font-weight: 900 !important;
+    opacity: 0.95;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    #afx-ecg-panel .afx-ecg-bpm {
+        font-size: 1.1rem;
+    }
+    #afx-ecg-panel .afx-ecg-rhythm {
+        font-size: 0.8rem;
+    }
 }
