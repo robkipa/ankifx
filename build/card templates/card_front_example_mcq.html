@@ -9,6 +9,9 @@
 
 <script>
     (function () {
+        // --- 0. Configurations ---
+        var ANKIFX_CDN_URL = "https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js";
+
         // --- 1. Dynamic Non-Blocking Config Loading ---
         var fieldContainer = document.getElementById("afx-config-field");
         var configText = fieldContainer ? fieldContainer.textContent.trim() : "";
@@ -95,7 +98,7 @@
         loadScriptAsync("_ankifx.js");
 
         // Load remote CDN engine asynchronously
-        loadScriptAsync("https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js", "ankifx-engine-script");
+        loadScriptAsync(ANKIFX_CDN_URL, "ankifx-engine-script");
 
         // Safety fallback check in case script was already cached/evaluated before onload listeners bound
         setTimeout(tryInitEngine, 100);
