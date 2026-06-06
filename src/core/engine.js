@@ -210,7 +210,7 @@ function getSessionValue(key) {
         if (typeof sessionStorage !== 'undefined') {
             return sessionStorage.getItem(key);
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -219,7 +219,7 @@ function getLocalValue(key) {
         if (typeof localStorage !== 'undefined') {
             return localStorage.getItem(key);
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -229,7 +229,7 @@ function setSessionValue(key, val) {
             sessionStorage.setItem(key, val);
             return true;
         }
-    } catch (e) {}
+    } catch (e) { }
     return false;
 }
 
@@ -239,29 +239,29 @@ function setLocalValue(key, val) {
             localStorage.setItem(key, val);
             return true;
         }
-    } catch (e) {}
+    } catch (e) { }
     return false;
 }
 
 function isToastShown(templateName) {
     const key = `afx_legacy_toast_${templateName}`;
-    
+
     const sessionVal = getSessionValue(key);
     if (sessionVal !== null) {
         return sessionVal === 'true';
     }
-    
+
     const localVal = getLocalValue(key);
     if (localVal !== null) {
         return localVal === 'true';
     }
-    
+
     return !!inMemoryStorage[key];
 }
 
 function setToastShown(templateName) {
     const key = `afx_legacy_toast_${templateName}`;
-    
+
     if (setSessionValue(key, 'true')) {
         return;
     }
@@ -283,13 +283,13 @@ export function detectLegacyTemplate() {
     } else {
         const name = metaEl.getAttribute('data-template-name');
         const version = metaEl.getAttribute('data-template-version');
-        
+
         if (!name) {
             isLegacy = true;
         } else {
             templateName = name.trim();
         }
-        
+
         if (!version || version.trim() === '') {
             isLegacy = true;
         }
@@ -313,7 +313,7 @@ export function showLegacyMigrationToast(templateName = 'unknown') {
             <div class="afx-legacy-toast-title">Legacy Template Detected</div>
             <div>
                 An update is required for full AnkiFX compatibility.<br>
-                Please see the <a class="afx-legacy-toast-link" href="https://github.com/robkipa/ankifx/blob/main/docs/template-migration-guide.md" target="_blank">Template Update Guide</a> for step-by-step instructions.
+                Please see the <a class="afx-legacy-toast-link" href="https://github.com/robkipa/ankifx/blob/dev/docs/template-migration-guide.md" target="_blank">Template Update Guide</a> for step-by-step instructions.
             </div>
         </div>
         <button class="afx-legacy-toast-close" title="Dismiss">&times;</button>
