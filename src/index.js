@@ -19,16 +19,37 @@ if (isNewer) {
             `[AnkiFX] Newer engine version v${incomingVersion} (${AnkiFX.source}) loaded late. ` +
             `Upgrading and replacing active engine v${activeVersion} (${currentEngine.source})...`
         );
+        window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
+        window.AnkiFX_Loader_Logs.push({
+            msg: `[Loader] Late takeover triggered: Upgrading active engine from v${activeVersion} to v${incomingVersion}...`,
+            level: 'info'
+        });
         try {
             currentEngine.destroy();
+            window.AnkiFX_Loader_Logs.push({
+                msg: `[Loader] Active engine v${activeVersion} destroyed successfully.`,
+                level: 'success'
+            });
         } catch (e) {
             console.error(`[AnkiFX] Error destroying old engine: ${e.message}`);
+            window.AnkiFX_Loader_Logs.push({
+                msg: `[Loader] Error destroying active engine: ${e.message}`,
+                level: 'error'
+            });
         }
         window.AnkiFX = AnkiFX;
         try {
             window.AnkiFX.init(window.AnkiFX_Config);
+            window.AnkiFX_Loader_Logs.push({
+                msg: `[Loader] Upgraded AnkiFX engine to v${incomingVersion} successfully.`,
+                level: 'success'
+            });
         } catch (e) {
             console.error(`[AnkiFX] Error initializing upgraded engine: ${e.message}`);
+            window.AnkiFX_Loader_Logs.push({
+                msg: `[Loader] Upgraded AnkiFX engine initialization failed: ${e.message}`,
+                level: 'error'
+            });
         }
     } else {
         window.AnkiFX = AnkiFX;
