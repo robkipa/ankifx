@@ -12,8 +12,9 @@ export const effect = {
     stop: stopAurora,
     drawOverlay: drawOverlay,
     onResize: (w, h) => {
-        const style = getComputedStyle(document.documentElement);
-        const topInset = parseInt(style.getPropertyValue('--io-header')) || 0;
+        const docEl = document.documentElement;
+        const style = docEl ? getComputedStyle(docEl) : null;
+        const topInset = style ? (parseInt(style.getPropertyValue('--io-header')) || 0) : 0;
         const visibleH = h - topInset;
 
         currentW = w / 8;
@@ -289,8 +290,9 @@ export function runAurora(contexts, config) {
 
 export function drawOverlay(ctx, w, h, timestamp) {
     // Render Stars crisp & twinkling on the high-resolution overlay canvas strictly within the visible document
-    const style = getComputedStyle(document.documentElement);
-    const topInset = parseInt(style.getPropertyValue('--io-header')) || 0;
+    const docEl = document.documentElement;
+    const style = docEl ? getComputedStyle(docEl) : null;
+    const topInset = style ? (parseInt(style.getPropertyValue('--io-header')) || 0) : 0;
     const visibleH = h - topInset;
 
     ctx.fillStyle = '#ffffff';

@@ -24,8 +24,9 @@ export const effect = {
     onResize: (w, h) => {
         currentW = w;
         currentH = h;
-        const style = getComputedStyle(document.documentElement);
-        topInset = parseInt(style.getPropertyValue('--io-header')) || 0;
+        const docEl = document.documentElement;
+        const style = docEl ? getComputedStyle(docEl) : null;
+        topInset = style ? (parseInt(style.getPropertyValue('--io-header')) || 0) : 0;
         visibleH = h - topInset;
         buildGame();
     },

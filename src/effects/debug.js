@@ -346,11 +346,12 @@ export function runDebug(contexts, config) {
         ctx.fillRect(0, 0, currentW, currentH);
 
         // Update Viewport & Layout Metrics
-        const style = getComputedStyle(document.documentElement);
-        const ioHeader = style.getPropertyValue('--io-header') || 'N/A';
-        const ioHeaderVal = parseInt(style.getPropertyValue('--io-header')) || 0;
-        const topInset = style.getPropertyValue('--top-inset') || 'N/A';
-        const bottomInset = style.getPropertyValue('--bottom-inset') || 'N/A';
+        const docEl = document.documentElement;
+        const style = docEl ? getComputedStyle(docEl) : null;
+        const ioHeader = style ? (style.getPropertyValue('--io-header') || 'N/A') : 'N/A';
+        const ioHeaderVal = style ? (parseInt(style.getPropertyValue('--io-header')) || 0) : 0;
+        const topInset = style ? (style.getPropertyValue('--top-inset') || 'N/A') : 'N/A';
+        const bottomInset = style ? (style.getPropertyValue('--bottom-inset') || 'N/A') : 'N/A';
         const bgEl = document.getElementById('ankifx-background');
         const resolvedViewportHeight = bgEl ? bgEl.getBoundingClientRect().height : 'N/A';
         const isLandscape = window.innerWidth > window.innerHeight;
