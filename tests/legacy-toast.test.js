@@ -180,6 +180,13 @@ function createMockContext(domState = {}) {
         AnkiFX_Eval_History: [],
         addEventListener: () => {},
         removeEventListener: () => {},
+        dispatchEvent: () => {},
+        CustomEvent: class {
+            constructor(type, init) {
+                this.type = type;
+                this.detail = init ? init.detail : null;
+            }
+        },
         cancelAnimationFrame: (id) => {
             if (id > 0 && id <= rafs.length) {
                 rafs[id - 1] = null;
@@ -205,6 +212,7 @@ function createMockContext(domState = {}) {
         getComputedStyle: mockWindow.getComputedStyle,
         requestAnimationFrame: mockWindow.requestAnimationFrame,
         cancelAnimationFrame: mockWindow.cancelAnimationFrame,
+        CustomEvent: mockWindow.CustomEvent,
         ResizeObserver: class {
             observe() {}
             unobserve() {}

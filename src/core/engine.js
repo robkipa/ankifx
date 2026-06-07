@@ -98,6 +98,8 @@ function init(templateOptions = {}) {
     attachCardObserver(state);
     reparentNativeElements(state);
 
+    setupTemplateUpdateNotice();
+
     const scheduleCheck = window.requestIdleCallback || function (cb) { setTimeout(cb, 0); };
     scheduleCheck(() => {
         detectLegacyTemplate();
@@ -216,8 +218,17 @@ function destroy() {
     state.currentEffectId = null;
     state.initialized = false;
 
+    if (templateStatusHandler) {
+        window.removeEventListener('ankifx:template-status', templateStatusHandler);
+        templateStatusHandler = null;
+    }
+    activeNoticeState = null;
+
     const legacyToast = document.getElementById('afx-legacy-toast');
     if (legacyToast) legacyToast.remove();
+
+    const updateNotice = document.getElementById('afx-update-notice');
+    if (updateNotice) updateNotice.remove();
 
     console.log('[AnkiFX] Destroyed.');
 }
@@ -310,6 +321,100 @@ export function detectLegacyTemplate() {
     if (isLegacy) {
         showLegacyMigrationToast(templateName);
     }
+}
+
+
+let activeNoticeState = null;
+let templateStatusHandler = null;
+
+export function setupTemplateUpdateNotice() {
+    if (templateStatusHandler) {
+        window.removeEventListener('ankifx:template-status', templateStatusHandler);
+    }
+    activeNoticeState = null;
+
+    const handleStatus = (status) => {
+        if (!status || !status.isNewer) return;
+        if (activeNoticeState) return;
+
+        const container = document.getElementById('afx-update-banner-root');
+        if (!container) return;
+
+        if (document.getElementById('afx-update-notice')) return;
+
+        activeNoticeState = 'outdated';
+
+        const dismissKey = `afx_dismiss_${status.name}_${status.local}`;
+
+        const isDismissed = () => {
+            try {
+                if (sessionStorage.getItem(dismissKey) === 'true') return true;
+            } catch (e) {}
+            try {
+                if (localStorage.getItem(dismissKey) === 'true') return true;
+            } catch (e) {}
+            return false;
+        };
+
+        if (isDismissed()) return;
+
+        const setDismissed = () => {
+            try {
+                sessionStorage.setItem(dismissKey, 'true');
+            } catch (e) {}
+            try {
+                localStorage.setItem(dismissKey, 'true');
+            } catch (e) {}
+        };
+
+        const notice = document.createElement('div');
+        notice.id = 'afx-update-notice';
+        notice.className = 'afx-update-notice';
+
+        const changelogText = status.changelog ? ` (${status.changelog})` : '';
+        notice.innerHTML = `
+            <div class="afx-update-notice-content">
+                <div class="afx-update-notice-title">Template Update Available</div>
+                <div>
+                    Card template is v${status.local}. Latest is v${status.remote}${changelogText}.<br>
+                    Please visit <a class="afx-update-notice-link" href="${status.targetUrl}" target="_blank">${status.displayUrl}</a> and copy the latest template.
+                </div>
+            </div>
+            <button class="afx-update-notice-close" title="Dismiss">&times;</button>
+        `;
+
+        const closeBtn = notice.querySelector('.afx-update-notice-close');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            notice.classList.remove('afx-visible');
+            setDismissed();
+            setTimeout(() => notice.remove(), 400);
+        });
+
+        const link = notice.querySelector('.afx-update-notice-link');
+        if (link) {
+            link.addEventListener('click', (e) => e.stopPropagation());
+        }
+
+        const stopProps = (e) => e.stopPropagation();
+        ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((evt) => {
+            notice.addEventListener(evt, stopProps, { passive: true });
+        });
+
+        requestAnimationFrame(() => {
+            container.appendChild(notice);
+            requestAnimationFrame(() => {
+                notice.classList.add('afx-visible');
+            });
+        });
+    };
+
+    templateStatusHandler = (e) => {
+        handleStatus(e.detail);
+    };
+
+    window.addEventListener('ankifx:template-status', templateStatusHandler);
+    window.dispatchEvent(new CustomEvent('ankifx:request-template-status'));
 }
 
 export function showLegacyMigrationToast(templateName = 'unknown') {

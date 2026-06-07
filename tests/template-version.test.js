@@ -41,7 +41,10 @@ describe('Template Versioning System - Pure Logic', () => {
             requestIdleCallback: (cb) => cb(),
             requestAnimationFrame: (cb) => cb(),
             fetch: () => new Promise(() => { }), // Return pending promise to prevent network activity or XHR fallback
-            AbortController: global.AbortController || function () { this.signal = {}; }
+            AbortController: global.AbortController || function () { this.signal = {}; },
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => {}
         };
         mockWindow.window = mockWindow;
 
@@ -65,7 +68,13 @@ describe('Template Versioning System - Pure Logic', () => {
             localStorage: { getItem: () => null },
             setTimeout: () => { },
             clearTimeout: () => { },
-            AbortController: global.AbortController || function () { this.signal = {}; }
+            AbortController: global.AbortController || function () { this.signal = {}; },
+            CustomEvent: class {
+                constructor(type, init) {
+                    this.type = type;
+                    this.detail = init ? init.detail : null;
+                }
+            }
         };
 
         vm.runInNewContext(modifiedScript, mockContext);
@@ -114,12 +123,11 @@ describe('Template Versioning System - Pure Logic', () => {
 });
 
 describe('Template Versioning System - DOM & Network Integration', () => {
-    it('injects update banner when remote version is newer', (t) => {
+    it('dispatches template status event when remote version is newer', (t) => {
         return new Promise((resolve, reject) => {
             const scriptCode = extractVersioningScript(path.join(__dirname, '../build/card templates/ankifx_mcq_front.html'));
 
-            let bannerInjected = false;
-            let injectedContent = '';
+            let eventDispatched = false;
 
             const mockWindow = {
                 requestIdleCallback: (cb) => cb(),
@@ -143,6 +151,27 @@ describe('Template Versioning System - DOM & Network Integration', () => {
                 },
                 AbortController: global.AbortController || function () {
                     this.signal = {};
+                },
+                dispatchEvent: (event) => {
+                    if (event && event.type === 'ankifx:template-status') {
+                        try {
+                            eventDispatched = true;
+                            const status = event.detail;
+                            assert.equal(status.name, 'front_mcq');
+                            assert.equal(status.local, '1.0.0');
+                            assert.equal(status.remote, '1.1.0');
+                            assert.equal(status.isNewer, true);
+                            assert.equal(status.changelog, 'New visual themes');
+                            resolve();
+                        } catch (e) {
+                            reject(e);
+                        }
+                    }
+                },
+                addEventListener: (evt, listener) => {
+                    mockWindow.listeners = mockWindow.listeners || {};
+                    mockWindow.listeners[evt] = mockWindow.listeners[evt] || [];
+                    mockWindow.listeners[evt].push(listener);
                 }
             };
             mockWindow.window = mockWindow;
@@ -160,43 +189,7 @@ describe('Template Versioning System - DOM & Network Integration', () => {
                                 }
                             };
                         }
-                        if (id === 'afx-update-banner-root') {
-                            return {
-                                appendChild: (el) => {
-                                    try {
-                                        bannerInjected = true;
-                                        injectedContent = el.innerHTML;
-
-                                        // Assertions on injected DOM elements
-                                        assert.ok(injectedContent.includes('Template Update Available'));
-                                        assert.ok(injectedContent.includes('v1.0.0'));
-                                        assert.ok(injectedContent.includes('v1.1.0'));
-                                        assert.ok(injectedContent.includes('New visual themes'));
-                                        resolve();
-                                    } catch (e) {
-                                        reject(e);
-                                    }
-                                }
-                            };
-                        }
                         return null;
-                    },
-                    createElement: (tag) => {
-                        if (tag === 'style') {
-                            return { id: '', textContent: '' };
-                        }
-                        return {
-                            className: '',
-                            innerHTML: '',
-                            querySelector: (sel) => {
-                                return { addEventListener: () => { } };
-                            },
-                            classList: { add: () => { } },
-                            addEventListener: () => { }
-                        };
-                    },
-                    head: {
-                        appendChild: () => { }
                     }
                 },
                 sessionStorage: {
@@ -216,6 +209,12 @@ describe('Template Versioning System - DOM & Network Integration', () => {
                     open() { }
                     send() { }
                     abort() { }
+                },
+                CustomEvent: class {
+                    constructor(type, init) {
+                        this.type = type;
+                        this.detail = init ? init.detail : null;
+                    }
                 }
             };
 
@@ -227,11 +226,11 @@ describe('Template Versioning System - DOM & Network Integration', () => {
         });
     });
 
-    it('fails silently and does not warn if network is unreachable', (t) => {
+    it('fails silently and does not dispatch event if network is unreachable', (t) => {
         return new Promise((resolve, reject) => {
             const scriptCode = extractVersioningScript(path.join(__dirname, '../build/card templates/ankifx_mcq_front.html'));
 
-            let bannerInjected = false;
+            let eventDispatched = false;
 
             const mockWindow = {
                 requestIdleCallback: (cb) => cb(),
@@ -239,7 +238,13 @@ describe('Template Versioning System - DOM & Network Integration', () => {
                 fetch: () => Promise.reject(new Error('Network offline')),
                 AbortController: global.AbortController || function () {
                     this.signal = {};
-                }
+                },
+                dispatchEvent: (event) => {
+                    if (event && event.type === 'ankifx:template-status') {
+                        eventDispatched = true;
+                    }
+                },
+                addEventListener: () => {}
             };
             mockWindow.window = mockWindow;
 
@@ -256,17 +261,8 @@ describe('Template Versioning System - DOM & Network Integration', () => {
                                 }
                             };
                         }
-                        if (id === 'afx-update-banner-root') {
-                            return {
-                                appendChild: () => {
-                                    bannerInjected = true;
-                                }
-                            };
-                        }
                         return null;
-                    },
-                    createElement: () => ({ classList: { add: () => { } } }),
-                    head: { appendChild: () => { } }
+                    }
                 },
                 sessionStorage: { getItem: () => null },
                 localStorage: { getItem: () => null },
@@ -287,21 +283,172 @@ describe('Template Versioning System - DOM & Network Integration', () => {
                         }
                     }
                     abort() { }
+                },
+                CustomEvent: class {
+                    constructor(type, init) {
+                        this.type = type;
+                        this.detail = init ? init.detail : null;
+                    }
                 }
             };
 
             try {
                 vm.runInNewContext(scriptCode, mockContext);
 
-                // Wait a tick to confirm no injection occurred
+                // Wait a tick to confirm no event was dispatched
                 setTimeout(() => {
                     try {
-                        assert.ok(!bannerInjected, 'Banner should not be injected if update check fails');
+                        assert.ok(!eventDispatched, 'Event should not be dispatched if network fails');
                         resolve();
                     } catch (e) {
                         reject(e);
                     }
                 }, 10);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
+
+    it('handles malformed JSON response gracefully without event dispatch or crash', (t) => {
+        return new Promise((resolve, reject) => {
+            const scriptCode = extractVersioningScript(path.join(__dirname, '../build/card templates/ankifx_mcq_front.html'));
+
+            let eventDispatched = false;
+
+            const mockWindow = {
+                requestIdleCallback: (cb) => cb(),
+                requestAnimationFrame: (cb) => cb(),
+                fetch: () => Promise.resolve({
+                    status: 200,
+                    text: () => Promise.resolve('{invalid json}')
+                }),
+                AbortController: global.AbortController || function () {
+                    this.signal = {};
+                },
+                dispatchEvent: (event) => {
+                    if (event && event.type === 'ankifx:template-status') {
+                        eventDispatched = true;
+                    }
+                },
+                addEventListener: () => {}
+            };
+            mockWindow.window = mockWindow;
+
+            const mockContext = {
+                window: mockWindow,
+                document: {
+                    getElementById: (id) => ({
+                        getAttribute: (attr) => attr === 'data-template-version' ? '1.0.0' : 'front_mcq'
+                    })
+                },
+                sessionStorage: { getItem: () => null },
+                localStorage: { getItem: () => null },
+                setTimeout: (cb) => cb(),
+                clearTimeout: () => {},
+                AbortController: global.AbortController || function () { this.signal = {}; },
+                CustomEvent: class {
+                    constructor(type, init) {
+                        this.type = type;
+                        this.detail = init ? init.detail : null;
+                    }
+                }
+            };
+
+            try {
+                vm.runInNewContext(scriptCode, mockContext);
+                setTimeout(() => {
+                    try {
+                        assert.ok(!eventDispatched, 'Event should not be dispatched for malformed JSON');
+                        resolve();
+                    } catch (e) {
+                        reject(e);
+                    }
+                }, 10);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
+
+    it('re-dispatches template status event when requested by late-loading engine', (t) => {
+        return new Promise((resolve, reject) => {
+            const scriptCode = extractVersioningScript(path.join(__dirname, '../build/card templates/ankifx_mcq_front.html'));
+
+            let eventCount = 0;
+            let capturedStatus = null;
+
+            const mockWindow = {
+                requestIdleCallback: (cb) => cb(),
+                requestAnimationFrame: (cb) => cb(),
+                fetch: () => Promise.resolve({
+                    status: 200,
+                    text: () => Promise.resolve(JSON.stringify({
+                        latestTemplateVersion: "1.1.0",
+                        templates: { front_mcq: "1.1.0" }
+                    }))
+                }),
+                AbortController: global.AbortController || function () { this.signal = {}; },
+                dispatchEvent: (event) => {
+                    if (event && event.type === 'ankifx:template-status') {
+                        eventCount++;
+                        capturedStatus = event.detail;
+                        if (eventCount === 2) {
+                            try {
+                                assert.equal(capturedStatus.isNewer, true);
+                                assert.equal(capturedStatus.remote, '1.1.0');
+                                resolve();
+                            } catch (e) {
+                                reject(e);
+                            }
+                        }
+                    }
+                },
+                addEventListener: (evt, listener) => {
+                    mockWindow.listeners = mockWindow.listeners || {};
+                    mockWindow.listeners[evt] = mockWindow.listeners[evt] || [];
+                    mockWindow.listeners[evt].push(listener);
+                }
+            };
+            mockWindow.window = mockWindow;
+
+            const mockContext = {
+                window: mockWindow,
+                document: {
+                    getElementById: (id) => ({
+                        getAttribute: (attr) => attr === 'data-template-version' ? '1.0.0' : 'front_mcq'
+                    })
+                },
+                sessionStorage: { getItem: () => null },
+                localStorage: { getItem: () => null },
+                setTimeout: (cb) => cb(),
+                clearTimeout: () => {},
+                AbortController: global.AbortController || function () { this.signal = {}; },
+                CustomEvent: class {
+                    constructor(type, init) {
+                        this.type = type;
+                        this.detail = init ? init.detail : null;
+                    }
+                }
+            };
+
+            try {
+                vm.runInNewContext(scriptCode, mockContext);
+
+                // Wait for the first fetch and event dispatch
+                setTimeout(() => {
+                    try {
+                        assert.equal(eventCount, 1, 'First event should be dispatched after fetch');
+                        
+                        // Fire request status event
+                        const requestHandlers = mockWindow.listeners['ankifx:request-template-status'] || [];
+                        assert.ok(requestHandlers.length > 0, 'Should have registered request handler');
+                        
+                        requestHandlers.forEach(handler => handler());
+                    } catch (e) {
+                        reject(e);
+                    }
+                }, 20);
             } catch (e) {
                 reject(e);
             }

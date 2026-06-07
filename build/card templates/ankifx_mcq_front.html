@@ -13,7 +13,11 @@
 <div id="afx-update-banner-root"></div>
 
 <script>
-    window.AnkiFX_CDN_URL = window.AnkiFX_CDN_URL || "https://cdn.jsdelivr.net/gh/robkipa/ankifx@dev/build/_ankifx.js";
+    window.AnkiFX_BOOTSTRAP = window.AnkiFX_BOOTSTRAP || {
+        cdn: "https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_ankifx.js",
+        manifest: "https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_afx_version.json"
+    };
+
     (function () {
         "use strict";
 
@@ -26,38 +30,10 @@
             var localVersion = metaEl.getAttribute("data-template-version") || "1.0.0";
             var templateName = metaEl.getAttribute("data-template-name") || "front_mcq";
 
-            var cdnUrl = window.AnkiFX_CDN_URL;
-            var manifestUrl = cdnUrl.replace(/_ankifx\.js$/, "_afx_version.json");
+            var manifestUrl = window.AnkiFX_BOOTSTRAP.manifest;
 
-            var dismissKey = "afx_dismiss_" + templateName + "_" + localVersion;
-
-            function isDismissed() {
-                try {
-                    if (sessionStorage.getItem(dismissKey) === "true") return true;
-                } catch (e) { }
-                try {
-                    if (localStorage.getItem(dismissKey) === "true") return true;
-                } catch (e) { }
-                try {
-                    if (window.AnkiFX_Dismissed_Templates && window.AnkiFX_Dismissed_Templates[dismissKey]) return true;
-                } catch (e) { }
-                return false;
-            }
-
-            function setDismissed() {
-                try {
-                    sessionStorage.setItem(dismissKey, "true");
-                } catch (e) { }
-                try {
-                    localStorage.setItem(dismissKey, "true");
-                } catch (e) { }
-                try {
-                    window.AnkiFX_Dismissed_Templates = window.AnkiFX_Dismissed_Templates || {};
-                    window.AnkiFX_Dismissed_Templates[dismissKey] = true;
-                } catch (e) { }
-            }
-
-            if (isDismissed()) return;
+            var computedStatus = null;
+            var requestCompleted = false;
 
             function parseVersion(v) {
                 if (!v) return { parts: [0, 0, 0], isPre: false, preType: 3, preNumber: 0 };
@@ -109,86 +85,14 @@
                 return false;
             }
 
-            function injectStyles() {
-                if (document.getElementById("ankifx-update-styles")) return;
-                var style = document.createElement("style");
-                style.id = "ankifx-update-styles";
-                style.textContent =
-                    ".afx-update-notice {" +
-                    "  background: rgba(30, 20, 35, 0.95);" +
-                    "  backdrop-filter: blur(12px);" +
-                    "  -webkit-backdrop-filter: blur(12px);" +
-                    "  border: 1px solid rgba(255, 0, 255, 0.4);" +
-                    "  border-radius: 12px;" +
-                    "  padding: 12px 18px;" +
-                    "  width: 100%;" +
-                    "  box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);" +
-                    "  display: flex;" +
-                    "  align-items: center;" +
-                    "  justify-content: space-between;" +
-                    "  gap: 12px;" +
-                    "  opacity: 0;" +
-                    "  pointer-events: auto;" +
-                    "  transition: opacity 0.38s ease, transform 0.38s ease;" +
-                    "  box-sizing: border-box;" +
-                    "  transform: translateY(-20px);" +
-                    "  font-family: SFMono-Regular, Consolas, Menlo, monospace;" +
-                    "  margin: 10px 0;" +
-                    "}" +
-                    ".afx-update-notice.afx-visible {" +
-                    "  opacity: 1;" +
-                    "  transform: translateY(0);" +
-                    "}" +
-                    ".afx-update-notice-content {" +
-                    "  flex: 1;" +
-                    "  color: #f0f0f0;" +
-                    "  font-size: 11px;" +
-                    "  line-height: 1.5;" +
-                    "  text-align: left;" +
-                    "}" +
-                    ".afx-update-notice-title {" +
-                    "  font-weight: bold;" +
-                    "  color: #ff00ff;" +
-                    "  margin: 0 0 2px 0;" +
-                    "  text-transform: uppercase;" +
-                    "  font-size: 12px;" +
-                    "  letter-spacing: 0.5px;" +
-                    "}" +
-                    ".afx-update-notice-link {" +
-                    "  color: #00ffff;" +
-                    "  text-decoration: underline;" +
-                    "  cursor: pointer;" +
-                    "  font-weight: bold;" +
-                    "}" +
-                    ".afx-update-notice-close {" +
-                    "  background: transparent;" +
-                    "  border: none;" +
-                    "  color: rgba(255,255,255,0.6);" +
-                    "  font-size: 18px;" +
-                    "  cursor: pointer;" +
-                    "  padding: 4px;" +
-                    "  line-height: 1;" +
-                    "  transition: color 0.2s, transform 0.2s;" +
-                    "  display: flex;" +
-                    "  align-items: center;" +
-                    "  justify-content: center;" +
-                    "}" +
-                    ".afx-update-notice-close:hover {" +
-                    "  color: #fff;" +
-                    "  transform: scale(1.15);" +
-                    "}";
-                document.head.appendChild(style);
-            }
-
-            function showNotice(remoteVersion, changelog) {
-                injectStyles();
-                var notice = document.createElement("div");
-                notice.className = "afx-update-notice";
+            function dispatchStatus(remoteVersion, changelog, isNewerVal) {
+                if (requestCompleted) return;
+                requestCompleted = true;
 
                 var targetUrl = "https://github.com/robkipa/ankifx";
                 var displayUrl = "github.com/robkipa/ankifx";
-                if (cdnUrl.indexOf("github") !== -1 || cdnUrl.indexOf("jsdelivr") !== -1) {
-                    var match = cdnUrl.match(/github(?:\.com)?\/([^\/]+\/[^\/]+)/) || cdnUrl.match(/jsdelivr\.net\/gh\/([^\/]+\/[^\/]+)/);
+                if (manifestUrl.indexOf("github") !== -1 || manifestUrl.indexOf("jsdelivr") !== -1) {
+                    var match = manifestUrl.match(/github(?:\.com)?\/([^\/]+\/[^\/]+)/) || manifestUrl.match(/jsdelivr\.net\/gh\/([^\/]+\/[^\/]+)/);
                     if (match) {
                         var slug = match[1].split("@")[0];
                         targetUrl = "https://github.com/" + slug;
@@ -196,61 +100,39 @@
                     }
                 }
 
-                var changelogText = changelog ? " (" + changelog + ")" : "";
-                notice.innerHTML =
-                    "<div class='afx-update-notice-content'>" +
-                    "  <div class='afx-update-notice-title'>Template Update Available</div>" +
-                    "  <div>" +
-                    "    Card template is v" + localVersion + ". Latest is v" + remoteVersion + changelogText + ".<br>" +
-                    "    Please visit <a class='afx-update-notice-link' href='" + targetUrl + "' target='_blank'>" + displayUrl + "</a> and copy the latest template." +
-                    "  </div>" +
-                    "</div>" +
-                    "<button class='afx-update-notice-close' title='Dismiss'>&times;</button>";
+                computedStatus = {
+                    name: templateName,
+                    local: localVersion,
+                    remote: remoteVersion,
+                    isNewer: isNewerVal,
+                    changelog: changelog || "",
+                    targetUrl: targetUrl,
+                    displayUrl: displayUrl
+                };
 
-                var closeBtn = notice.querySelector(".afx-update-notice-close");
-                closeBtn.addEventListener("click", function (e) {
-                    e.stopPropagation();
-                    notice.classList.remove("afx-visible");
-                    setDismissed();
-                    setTimeout(function () { notice.remove(); }, 400);
-                });
-
-                var link = notice.querySelector(".afx-update-notice-link");
-                link.addEventListener("click", function (e) {
-                    e.stopPropagation();
-                });
-
-                var stopProps = function (e) { e.stopPropagation(); };
-                ["touchstart", "touchend", "mousedown", "mouseup", "click"].forEach(function (evt) {
-                    notice.addEventListener(evt, stopProps, { passive: true });
-                });
-
-                var container = document.getElementById("afx-update-banner-root");
-                if (container) {
-                    window.requestAnimationFrame(function () {
-                        container.appendChild(notice);
-                        window.requestAnimationFrame(function () {
-                            notice.classList.add("afx-visible");
-                        });
-                    });
-                }
+                window.dispatchEvent(new CustomEvent("ankifx:template-status", { detail: computedStatus }));
             }
 
-            var fetchTimeout = 2000;
-            var requestCompleted = false;
-
             function handleManifest(manifestText) {
-                if (requestCompleted) return;
-                requestCompleted = true;
                 try {
                     var manifest = JSON.parse(manifestText);
                     var remoteVersion = (manifest.templates && manifest.templates[templateName])
                         || manifest.latestTemplateVersion;
                     if (remoteVersion && isNewer(localVersion, remoteVersion)) {
-                        showNotice(remoteVersion, manifest.changelog);
+                        dispatchStatus(remoteVersion, manifest.changelog, true);
+                    } else {
+                        dispatchStatus(remoteVersion || localVersion, "", false);
                     }
                 } catch (err) { }
             }
+
+            window.addEventListener("ankifx:request-template-status", function () {
+                if (computedStatus) {
+                    window.dispatchEvent(new CustomEvent("ankifx:template-status", { detail: computedStatus }));
+                }
+            });
+
+            var fetchTimeout = 2000;
 
             if (typeof window.fetch === "function" && typeof window.AbortController === "function") {
                 var controller = new AbortController();
@@ -289,12 +171,8 @@
                         }
                     }
                 };
-                xhr.ontimeout = function () {
-                    xhr.abort();
-                };
-                xhr.onerror = function () {
-                    xhr.abort();
-                };
+                xhr.ontimeout = function () { xhr.abort(); };
+                xhr.onerror = function () { xhr.abort(); };
                 xhr.send();
             }
         });
@@ -365,7 +243,7 @@
         if (!document.getElementById('ankifx-engine-script')) {
             var script = document.createElement('script');
             script.id = 'ankifx-engine-script';
-            script.src = window.AnkiFX_CDN_URL;
+            script.src = window.AnkiFX_BOOTSTRAP.cdn;
             script.onerror = function() { console.warn('AnkiFX: CDN failed to load, using local engine.'); };
             document.head.appendChild(script);
         }
