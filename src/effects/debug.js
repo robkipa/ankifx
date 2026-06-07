@@ -40,8 +40,7 @@ function refreshLayoutMetrics() {
 
 // Global Console Interceptor setup
 const captureLog = (type, args) => {
-    // Only capture if debug mode is active in the current config
-    if (!window.AnkiFX_Config?.debug) return;
+    // Always capture logs so they are available if the user opens the debug panel
 
     const message = args.map(arg => {
         if (arg === null) return 'null';
@@ -90,7 +89,6 @@ if (typeof window !== 'undefined' && !window.__console_intercepted__) {
     console.debug = (...args) => { _debug(...args); captureLog('debug', args); };
 
     window.addEventListener('error', (event) => {
-        if (!window.AnkiFX_Config?.debug) return;
         let errMsg = event.message;
         if (event.error) {
             const name = event.error.name || 'Error';
@@ -106,7 +104,6 @@ if (typeof window !== 'undefined' && !window.__console_intercepted__) {
     });
 
     window.addEventListener('unhandledrejection', (event) => {
-        if (!window.AnkiFX_Config?.debug) return;
         captureLog('error', [`Unhandled Promise Rejection: ${event.reason}`]);
     });
 
