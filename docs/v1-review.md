@@ -85,7 +85,7 @@ This pre-release review of the `dev` branch of AnkiFX (`github.com/robkipa/ankif
 ### 2. Missing `CONTRIBUTING.md`
 * **Reference**: Root Directory
 * **Problem**: No contribution guidelines were defined for commit formats or custom effects.
-* **Status**: **RESOLVED** in commit [`03e2b39`](https://github.com/robkipa/ankifx/commit/03e2b39) — Guidelines, agent standards, and conventions are now fully documented in `.cursorrules` and `README.md`.
+* **Status**: **RESOLVED** in commit [`690b888`](https://github.com/robkipa/ankifx/commit/690b888) — Created a comprehensive `CONTRIBUTING.md` document detailing setup, workflows, guidelines, and API specs.
 
 ---
 
