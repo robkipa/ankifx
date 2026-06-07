@@ -79,6 +79,16 @@ if (isNewer) {
             });
         }
     } else {
+        if (currentEngine) {
+            console.info(
+                `[Loader] Newer engine version v${incomingVersion} (${AnkiFX.source}) replacing ` +
+                `uninitialized engine v${activeVersion} (${currentEngine.source}).`
+            );
+            pushLoaderLog({
+                msg: `[Loader] Pre-init takeover: Replacing local v${activeVersion} with remote v${incomingVersion}...`,
+                level: 'info'
+            });
+        }
         window.AnkiFX = AnkiFX;
     }
 } else {
