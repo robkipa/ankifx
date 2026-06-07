@@ -51,6 +51,11 @@ function init(templateOptions = {}) {
     if (document.getElementById('ankifx-overlay')) {
         if (tryRestoreAgreedSession(state, config)) {
             state.initialized = true;
+            setupTemplateUpdateNotice();
+            const scheduleCheck = window.requestIdleCallback || function (cb) { setTimeout(cb, 0); };
+            scheduleCheck(() => {
+                detectLegacyTemplate();
+            });
             return;
         }
     }
@@ -327,6 +332,16 @@ export function detectLegacyTemplate() {
 let activeNoticeState = null;
 let templateStatusHandler = null;
 
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 export function setupTemplateUpdateNotice() {
     if (templateStatusHandler) {
         window.removeEventListener('ankifx:template-status', templateStatusHandler);
@@ -339,6 +354,9 @@ export function setupTemplateUpdateNotice() {
 
         const container = document.getElementById('afx-update-banner-root');
         if (!container) return;
+
+        // Gate on the banner root being empty
+        if (container.children.length > 0) return;
 
         if (document.getElementById('afx-update-notice')) return;
 
@@ -371,13 +389,13 @@ export function setupTemplateUpdateNotice() {
         notice.id = 'afx-update-notice';
         notice.className = 'afx-update-notice';
 
-        const changelogText = status.changelog ? ` (${status.changelog})` : '';
+        const changelogText = status.changelog ? ` (${escapeHTML(status.changelog)})` : '';
         notice.innerHTML = `
             <div class="afx-update-notice-content">
                 <div class="afx-update-notice-title">Template Update Available</div>
                 <div>
-                    Card template is v${status.local}. Latest is v${status.remote}${changelogText}.<br>
-                    Please visit <a class="afx-update-notice-link" href="${status.targetUrl}" target="_blank">${status.displayUrl}</a> and copy the latest template.
+                    Card template is v${escapeHTML(status.local)}. Latest is v${escapeHTML(status.remote)}${changelogText}.<br>
+                    Please visit <a class="afx-update-notice-link" href="${escapeHTML(status.targetUrl)}" target="_blank">${escapeHTML(status.displayUrl)}</a> and copy the latest template.
                 </div>
             </div>
             <button class="afx-update-notice-close" title="Dismiss">&times;</button>
