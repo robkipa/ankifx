@@ -15,6 +15,14 @@ export function bindAudioControls(state, config, overlay) {
         overlay.classList.add('afx-music-playing');
     }
 
+    if (state.jukebox) {
+        try {
+            state.jukebox.stop();
+        } catch (e) {
+            console.warn('[AnkiFX] Error stopping old jukebox:', e.message);
+        }
+    }
+
     state.jukebox = new Jukebox({
         onTrackChange: (track) => {
             const str = `NOW PLAYING: ${track.artist} - ${track.title} - ${track.trackTitle}`;
