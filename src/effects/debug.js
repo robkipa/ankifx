@@ -379,6 +379,8 @@ export function runDebug(contexts, config) {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, currentW, currentH);
 
+        const visibleH = layoutMetrics.visibleHeight;
+
         // Update Viewport & Layout Metrics
         const formatMetric = (val) => val !== null ? `${val}px` : 'N/A';
         const ioHeaderDisp = formatMetric(layoutMetrics.ioHeaderHeight);
