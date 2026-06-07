@@ -3,7 +3,16 @@ let currentW, currentH;
 let debugContainer = null;
 
 const maxCapturedLogs = 200;
-window.AnkiFX_Captured_Logs = window.AnkiFX_Captured_Logs || [];
+
+let initialLogs = [];
+try {
+    const stored = sessionStorage.getItem('ankifx_captured_logs');
+    if (stored) {
+        initialLogs = JSON.parse(stored);
+    }
+} catch (e) {}
+
+window.AnkiFX_Captured_Logs = window.AnkiFX_Captured_Logs || initialLogs;
 let onLogAdded = null;
 let currentFilter = 'all';
 
@@ -64,6 +73,10 @@ const captureLog = (type, args) => {
     if (window.AnkiFX_Captured_Logs.length > maxCapturedLogs) {
         window.AnkiFX_Captured_Logs.shift();
     }
+
+    try {
+        sessionStorage.setItem('ankifx_captured_logs', JSON.stringify(window.AnkiFX_Captured_Logs));
+    } catch (e) {}
 
     if (onLogAdded) {
         onLogAdded();
@@ -141,6 +154,11 @@ export const effect = {
             onClick: () => {
                 if (confirm('Clear ALL AnkiFX local storage?')) {
                     localStorage.clear();
+                    try {
+                        sessionStorage.removeItem('ankifx_captured_logs');
+                        sessionStorage.removeItem('ankifx_loader_logs');
+                        sessionStorage.removeItem('ankifx_eval_history');
+                    } catch (e) {}
                     location.reload();
                 }
             }
@@ -270,6 +288,9 @@ export function runDebug(contexts, config) {
         clearConsoleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             window.AnkiFX_Captured_Logs.length = 0;
+            try {
+                sessionStorage.removeItem('ankifx_captured_logs');
+            } catch (err) {}
         });
     }
 

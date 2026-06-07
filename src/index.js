@@ -2,7 +2,30 @@ import { AnkiFX } from './core/engine.js';
 import { isNewerVersion } from './core/version.js';
 
 // Record evaluation history chronologically
-window.AnkiFX_Eval_History = window.AnkiFX_Eval_History || [];
+let initialEvalHistory = [];
+try {
+    const stored = sessionStorage.getItem('ankifx_eval_history');
+    if (stored) {
+        initialEvalHistory = JSON.parse(stored);
+    }
+} catch (e) {}
+window.AnkiFX_Eval_History = window.AnkiFX_Eval_History || initialEvalHistory;
+
+let initialLoaderLogs = [];
+try {
+    const stored = sessionStorage.getItem('ankifx_loader_logs');
+    if (stored) {
+        initialLoaderLogs = JSON.parse(stored);
+    }
+} catch (e) {}
+window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || initialLoaderLogs;
+
+const pushLoaderLog = (log) => {
+    window.AnkiFX_Loader_Logs.push(log);
+    try {
+        sessionStorage.setItem('ankifx_loader_logs', JSON.stringify(window.AnkiFX_Loader_Logs));
+    } catch (e) {}
+};
 
 const currentEngine = window.AnkiFX;
 const incomingVersion = AnkiFX.version;
@@ -20,21 +43,20 @@ if (isNewer) {
             `[Loader] Newer engine version v${incomingVersion} (${AnkiFX.source}) loaded late. ` +
             `Upgrading and replacing active engine v${activeVersion} (${currentEngine.source})...`
         );
-        window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
-        window.AnkiFX_Loader_Logs.push({
+        pushLoaderLog({
             msg: `[Loader] Late takeover triggered: Upgrading active engine from v${activeVersion} to v${incomingVersion}...`,
             level: 'info'
         });
         const savedConfig = window.AnkiFX_Config;
         try {
             currentEngine.destroy();
-            window.AnkiFX_Loader_Logs.push({
+            pushLoaderLog({
                 msg: `[Loader] Active engine v${activeVersion} destroyed successfully.`,
                 level: 'success'
             });
         } catch (e) {
             console.error(`[Loader] Error destroying old engine: ${e.message}`);
-            window.AnkiFX_Loader_Logs.push({
+            pushLoaderLog({
                 msg: `[Loader] Error destroying active engine: ${e.message}`,
                 level: 'error'
             });
@@ -45,13 +67,13 @@ if (isNewer) {
         window.AnkiFX = AnkiFX;
         try {
             window.AnkiFX.init(window.AnkiFX_Config);
-            window.AnkiFX_Loader_Logs.push({
+            pushLoaderLog({
                 msg: `[Loader] Upgraded AnkiFX engine to v${incomingVersion} successfully.`,
                 level: 'success'
             });
         } catch (e) {
             console.error(`[Loader] Error initializing upgraded engine: ${e.message}`);
-            window.AnkiFX_Loader_Logs.push({
+            pushLoaderLog({
                 msg: `[Loader] Upgraded AnkiFX engine initialization failed: ${e.message}`,
                 level: 'error'
             });
@@ -74,3 +96,6 @@ window.AnkiFX_Eval_History.push({
     time: new Date().toLocaleTimeString(),
     status: isIgnored ? ignoreReason : 'active'
 });
+try {
+    sessionStorage.setItem('ankifx_eval_history', JSON.stringify(window.AnkiFX_Eval_History));
+} catch (e) {}
