@@ -262,7 +262,11 @@
                 window.AnkiFX_Remote_Status = "loaded";
                 afxLog("Remote engine script loaded (sync).", "success");
             } else if (window.AnkiFX_Remote_Status === "loaded" || window.AnkiFX_Remote_Status === "failed") {
-                afxLog("Remote engine script status already resolved: " + window.AnkiFX_Remote_Status, window.AnkiFX_Remote_Status === "loaded" ? "success" : "warn");
+                if (window.AnkiFX_Remote_Status === "loaded") {
+                    afxLog("Remote engine script status already resolved: loaded.", "success");
+                } else {
+                    afxLog("Remote engine script status already resolved: failed (using local engine fallback).", "info");
+                }
             } else {
                 window.AnkiFX_Remote_Status = "pending";
                 afxLog("Remote engine script pending...", "pending");
