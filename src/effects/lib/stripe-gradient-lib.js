@@ -56,6 +56,16 @@ class MiniGl {
                         context.attachShader(material.program, material.vertexShader);
                         context.attachShader(material.program, material.fragmentShader);
                         context.linkProgram(material.program);
+                        
+                        if (material.vertexShader) {
+                            context.detachShader(material.program, material.vertexShader);
+                            context.deleteShader(material.vertexShader);
+                        }
+                        if (material.fragmentShader) {
+                            context.detachShader(material.program, material.fragmentShader);
+                            context.deleteShader(material.fragmentShader);
+                        }
+
                         if (!context.getProgramParameter(material.program, context.LINK_STATUS)) {
                             console.error('[Gradient/WebGL] Program link error:', context.getProgramInfoLog(material.program));
                         }

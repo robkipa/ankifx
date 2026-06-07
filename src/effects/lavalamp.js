@@ -269,8 +269,15 @@ function initWebGL() {
     
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
         console.error('[LavaLamp/WebGL] Program link error:', gl.getProgramInfoLog(program));
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
         return false;
     }
+    
+    gl.detachShader(program, vs);
+    gl.detachShader(program, fs);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
     
     gl.useProgram(program);
     
