@@ -25,7 +25,7 @@ Now, the project is open to the public so anyone can inject stunning, high-perfo
     *   *Aurora*: Organic, noise-based northern lights simulation (optimized for mobile).
     *   *ECG*: Blood-red cardiac monitor visualizer effect with PQRST waveforms, phosphor fade trail, alternating arrhythmias (including AV blocks, STEMI, AFib, Flutter, and Torsades), and an interactive trigger toggle button.
     *   *Fire*: Classic demoscene doom-fire simulation.
-    *   *Geometry*: 3D demoscene geometry + scrolling marquee.
+    *   *Geometry*: Sacred geometry engine utilizing a unified field ontology, driving four distinct projection modes (Unity, Light, Flow, and Fractal Mosaic).
     *   *Julia Set*: Animated fractal with a built-in **Preset Picker**.
     *   *Mandelbrot*: Zooming progressive fractal with tuning parameters.
     *   *Matrix*: Cyberpunk digital rain.
