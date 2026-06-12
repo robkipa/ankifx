@@ -33,6 +33,8 @@ Select and open the links below for your note type to view the latest template c
 * **Basic Note Type**:
   - **Front Template**: [ankifx_basic_front.html](https://github.com/robkipa/ankifx/blob/main/build/card%20templates/ankifx_basic_front.html)
   - **Back Template**: [ankifx_basic_back.html](https://github.com/robkipa/ankifx/blob/main/build/card%20templates/ankifx_basic_back.html)
+* **Shared Styling**:
+  - **Card Styling (CSS)**: [card_styling.css](https://github.com/robkipa/ankifx/blob/main/build/card%20templates/card_styling.css)
 
 Keep the page open so you can copy the contents in the next steps.
 
@@ -64,7 +66,7 @@ The Card Template Editor will open. You will see three tabs or boxes: **Front Te
 
 ![SCREENSHOT: Front Template Empty](assets/front_empty.png)
 
-4. Go back to the downloaded files from **Step 1**, copy the entire contents of the new **Front Template** code, and paste it into the empty box.
+4. Go back to the files from **Step 1**, copy the entire contents of the new **Front Template** code, and paste it into the empty box.
 
 > [!WARNING]
 > Do not partially edit or change specific lines in the template. You must delete everything in the box first and replace the entire contents to prevent broken layouts.
@@ -83,11 +85,22 @@ Now, repeat the same replacement process for the back of the card:
 
 ![SCREENSHOT: Back Template Empty](assets/back_empty.png)
 
-4. Go back to the downloaded files from **Step 1**, copy the entire contents of the new **Back Template** code, and paste it into the empty box.
+4. Go back to the files from **Step 1**, copy the entire contents of the new **Back Template** code, and paste it into the empty box.
 
 ---
 
-## Step 5 — Save Changes
+## Step 5 — Update the Styling (CSS)
+
+Next, update the shared CSS styling that controls the visual appearance of both cards:
+
+1. Select the **Styling** toggle in the middle of the template editor.
+2. Click inside the code box and select everything (`Ctrl + A` / `Cmd + A`).
+3. Delete the selected text so the box is completely empty.
+4. Go back to the files from **Step 1**, copy the entire contents of the new **Card Styling (CSS)** code, and paste it into the empty box.
+
+---
+
+## Step 6 — Save Changes
 
 1. Click the **Save** button in the bottom-right corner of the Card Template Editor.
 
@@ -97,7 +110,7 @@ Now, repeat the same replacement process for the back of the card:
 
 ---
 
-## Step 6 — Verify Successful Update
+## Step 7 — Verify Successful Update
 
 To ensure the update was completed successfully, review a card and verify the following:
 
