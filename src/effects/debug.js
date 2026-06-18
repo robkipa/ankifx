@@ -3,14 +3,53 @@ let currentW, currentH;
 let debugContainer = null;
 
 const maxCapturedLogs = 200;
-const capturedLogs = [];
+
+let initialLogs = [];
+try {
+    const stored = sessionStorage.getItem('ankifx_captured_logs');
+    if (stored) {
+        initialLogs = JSON.parse(stored);
+    }
+} catch (e) {}
+
+window.AnkiFX_Captured_Logs = window.AnkiFX_Captured_Logs || initialLogs;
 let onLogAdded = null;
 let currentFilter = 'all';
 
+const layoutMetrics = {
+    ioHeaderHeight: null,
+    topInset: null,
+    bottomInset: null,
+    viewportHeight: null,
+    visibleHeight: 0,
+    isLandscape: false
+};
+
+function refreshLayoutMetrics() {
+    const docEl = document.documentElement;
+    const style = docEl ? getComputedStyle(docEl) : null;
+    
+    const parseCSSVal = (s, prop) => {
+        if (!s) return null;
+        const val = s.getPropertyValue(prop);
+        if (!val || val.trim() === '') return null;
+        const parsed = parseInt(val, 10);
+        return isNaN(parsed) ? null : parsed;
+    };
+
+    layoutMetrics.ioHeaderHeight = parseCSSVal(style, '--io-header');
+    layoutMetrics.topInset = parseCSSVal(style, '--top-inset');
+    layoutMetrics.bottomInset = parseCSSVal(style, '--bottom-inset');
+    
+    const bgEl = document.getElementById('ankifx-background');
+    layoutMetrics.viewportHeight = bgEl ? Math.round(bgEl.getBoundingClientRect().height) : null;
+    layoutMetrics.isLandscape = window.innerWidth > window.innerHeight;
+    layoutMetrics.visibleHeight = (docEl ? docEl.clientHeight : window.innerHeight) + (layoutMetrics.ioHeaderHeight || 0);
+}
+
 // Global Console Interceptor setup
 const captureLog = (type, args) => {
-    // Only capture if debug mode is active in the current config
-    if (!window.AnkiFX_Config?.debug) return;
+    // Always capture logs so they are available if the user opens the debug panel
 
     const message = args.map(arg => {
         if (arg === null) return 'null';
@@ -25,15 +64,19 @@ const captureLog = (type, args) => {
         return String(arg);
     }).join(' ');
 
-    capturedLogs.push({
+    window.AnkiFX_Captured_Logs.push({
         type,
         message,
         timestamp: new Date().toLocaleTimeString()
     });
 
-    if (capturedLogs.length > maxCapturedLogs) {
-        capturedLogs.shift();
+    if (window.AnkiFX_Captured_Logs.length > maxCapturedLogs) {
+        window.AnkiFX_Captured_Logs.shift();
     }
+
+    try {
+        sessionStorage.setItem('ankifx_captured_logs', JSON.stringify(window.AnkiFX_Captured_Logs));
+    } catch (e) {}
 
     if (onLogAdded) {
         onLogAdded();
@@ -59,7 +102,6 @@ if (typeof window !== 'undefined' && !window.__console_intercepted__) {
     console.debug = (...args) => { _debug(...args); captureLog('debug', args); };
 
     window.addEventListener('error', (event) => {
-        if (!window.AnkiFX_Config?.debug) return;
         let errMsg = event.message;
         if (event.error) {
             const name = event.error.name || 'Error';
@@ -75,7 +117,6 @@ if (typeof window !== 'undefined' && !window.__console_intercepted__) {
     });
 
     window.addEventListener('unhandledrejection', (event) => {
-        if (!window.AnkiFX_Config?.debug) return;
         captureLog('error', [`Unhandled Promise Rejection: ${event.reason}`]);
     });
 
@@ -90,6 +131,7 @@ export const effect = {
     onResize: (w, h) => {
         currentW = w;
         currentH = h;
+        refreshLayoutMetrics();
     },
     marqueeFont: {
         color: '#00ff00',
@@ -112,6 +154,11 @@ export const effect = {
             onClick: () => {
                 if (confirm('Clear ALL AnkiFX local storage?')) {
                     localStorage.clear();
+                    try {
+                        sessionStorage.removeItem('ankifx_captured_logs');
+                        sessionStorage.removeItem('ankifx_loader_logs');
+                        sessionStorage.removeItem('ankifx_eval_history');
+                    } catch (e) {}
                     location.reload();
                 }
             }
@@ -129,6 +176,8 @@ export function runDebug(contexts, config) {
     const actualDpr = contexts.dpr || 1;
     currentW = contexts.width;
     currentH = contexts.height;
+
+    refreshLayoutMetrics();
 
     // Create main container
     debugContainer = document.createElement('div');
@@ -238,7 +287,10 @@ export function runDebug(contexts, config) {
     if (clearConsoleBtn) {
         clearConsoleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            capturedLogs.length = 0;
+            window.AnkiFX_Captured_Logs.length = 0;
+            try {
+                sessionStorage.removeItem('ankifx_captured_logs');
+            } catch (err) {}
         });
     }
 
@@ -345,16 +397,15 @@ export function runDebug(contexts, config) {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, currentW, currentH);
 
+        const visibleH = layoutMetrics.visibleHeight;
+
         // Update Viewport & Layout Metrics
-        const style = getComputedStyle(document.documentElement);
-        const ioHeader = style.getPropertyValue('--io-header') || 'N/A';
-        const ioHeaderVal = parseInt(style.getPropertyValue('--io-header')) || 0;
-        const topInset = style.getPropertyValue('--top-inset') || 'N/A';
-        const bottomInset = style.getPropertyValue('--bottom-inset') || 'N/A';
-        const bgEl = document.getElementById('ankifx-background');
-        const resolvedViewportHeight = bgEl ? bgEl.getBoundingClientRect().height : 'N/A';
-        const isLandscape = window.innerWidth > window.innerHeight;
-        const visibleH = document.documentElement.clientHeight + ioHeaderVal;
+        const formatMetric = (val) => val !== null ? `${val}px` : 'N/A';
+        const ioHeaderDisp = formatMetric(layoutMetrics.ioHeaderHeight);
+        const topInsetDisp = formatMetric(layoutMetrics.topInset);
+        const bottomInsetDisp = formatMetric(layoutMetrics.bottomInset);
+        const viewportHeightDisp = formatMetric(layoutMetrics.viewportHeight);
+        const ioHeaderVal = layoutMetrics.ioHeaderHeight || 0;
 
         const viewportText = [
             `window:               ${window.innerWidth}x${window.innerHeight}`,
@@ -362,11 +413,11 @@ export function runDebug(contexts, config) {
             `doc:                  ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
             `orient:               ${window.orientation || 'N/A'}`,
             `dpr (native|engine):  (${window.devicePixelRatio}|${actualDpr})`,
-            `--io-header:          ${ioHeader}`,
-            `--top-inset:          ${topInset}`,
-            `--bottom-inset:       ${bottomInset}`,
-            `--afx-viewport-height: calc(100dvh + ${ioHeaderVal}px) = ${resolvedViewportHeight}px`,
-            `isLandscape:          ${isLandscape}`
+            `--io-header:          ${ioHeaderDisp}`,
+            `--top-inset:          ${topInsetDisp}`,
+            `--bottom-inset:       ${bottomInsetDisp}`,
+            `--afx-viewport-height: calc(100dvh + ${ioHeaderVal}px) = ${viewportHeightDisp}`,
+            `isLandscape:          ${layoutMetrics.isLandscape}`
         ].join('\n');
 
         if (viewportText !== lastViewportText) {
@@ -526,7 +577,7 @@ export function runDebug(contexts, config) {
         }
 
         // Update Console Logs Panel
-        const filteredLogs = capturedLogs.filter(log => {
+        const filteredLogs = window.AnkiFX_Captured_Logs.filter(log => {
             if (currentFilter === 'all') return true;
             return log.type === currentFilter;
         });
@@ -578,14 +629,16 @@ export function runDebug(contexts, config) {
         }
 
         // Update Corner Markers text
-        const cornersText = `${currentW}x${visibleH}`;
+        const roundedW = Math.round(currentW);
+        const roundedH = Math.round(visibleH);
+        const cornersText = `${roundedW}x${roundedH}`;
         if (cornersText !== lastCornersText) {
             corners.topLeft.textContent = `(0,0)`;
-            corners.topRight.textContent = `(${currentW},0)`;
-            corners.bottomLeft.textContent = `(0,${visibleH})`;
-            corners.bottomRight.textContent = `(${currentW},${visibleH})`;
-            corners.bottomLeft.style.top = `${visibleH - 18}px`;
-            corners.bottomRight.style.top = `${visibleH - 18}px`;
+            corners.topRight.textContent = `(${roundedW},0)`;
+            corners.bottomLeft.textContent = `(0,${roundedH})`;
+            corners.bottomRight.textContent = `(${roundedW},${roundedH})`;
+            corners.bottomLeft.style.top = `${roundedH - 18}px`;
+            corners.bottomRight.style.top = `${roundedH - 18}px`;
             lastCornersText = cornersText;
         }
 

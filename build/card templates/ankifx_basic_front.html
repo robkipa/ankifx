@@ -1,0 +1,390 @@
+<!-- AnkiFX Template Metadata -->
+<div id="ankifx-template-meta" style="display: none !important;" data-template-name="front_basic"
+    data-template-version="1.0.0" data-engine-compatibility=">=1.0.0"></div>
+
+<!-- Reserved Container for Update Banner -->
+<div id="afx-update-banner-root"></div>
+
+<script>
+    window.AnkiFX_BOOTSTRAP = window.AnkiFX_BOOTSTRAP || {
+        cdn: "https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_ankifx.js",
+        manifest: "https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_afx_version.json"
+    };
+
+    window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
+    window.afxLog = function (msg, level) {
+        var prefixed = msg.indexOf("[Card Template]") === 0 ? msg : "[Card Template] " + msg;
+        window.AnkiFX_Loader_Logs.push({ msg: prefixed, level: level || 'info' });
+    };
+    var afxLog = window.afxLog;
+
+    (function () {
+        "use strict";
+
+        var scheduleCheck = window.requestIdleCallback || function (cb) { setTimeout(cb, 0); };
+
+        scheduleCheck(function () {
+            var metaEl = document.getElementById("ankifx-template-meta");
+            if (!metaEl) return;
+
+            var localVersion = metaEl.getAttribute("data-template-version") || "1.0.0";
+            var templateName = metaEl.getAttribute("data-template-name") || "front_basic";
+
+            var manifestUrl = window.AnkiFX_BOOTSTRAP.manifest;
+
+            var computedStatus = null;
+            var requestCompleted = false;
+
+            function parseVersion(v) {
+                if (!v) return { parts: [0, 0, 0], isPre: false, preType: 3, preNumber: 0 };
+                var clean = String(v).replace(/^v/, "");
+                var hasBuild = clean.indexOf("+");
+                if (hasBuild !== -1) clean = clean.substring(0, hasBuild);
+
+                var hasPre = clean.indexOf("-");
+                var isPre = hasPre !== -1;
+                var base = isPre ? clean.substring(0, hasPre) : clean;
+                var preTag = isPre ? clean.substring(hasPre + 1).toLowerCase() : "";
+
+                var parts = base.split(".").map(function (p) {
+                    var val = parseInt(p, 10);
+                    return isNaN(val) ? 0 : val;
+                });
+
+                var preType = 3; // default: stable
+                var preNumber = 0;
+                if (isPre) {
+                    if (preTag.indexOf("alpha") !== -1) preType = 0;
+                    else if (preTag.indexOf("beta") !== -1) preType = 1;
+                    else if (preTag.indexOf("rc") !== -1) preType = 2;
+
+                    if (preType < 3) {
+                        var numMatch = preTag.match(/\d+/);
+                        if (numMatch) preNumber = parseInt(numMatch[0], 10);
+                    }
+                }
+
+                return {
+                    parts: [parts[0] || 0, parts[1] || 0, parts[2] || 0],
+                    isPre: isPre,
+                    preType: preType,
+                    preNumber: preNumber
+                };
+            }
+
+            function isNewer(local, remote) {
+                try {
+                    var a = parseVersion(local);
+                    var b = parseVersion(remote);
+                    for (var i = 0; i < 3; i++) {
+                        if (a.parts[i] < b.parts[i]) return true;
+                        if (a.parts[i] > b.parts[i]) return false;
+                    }
+                    if (a.isPre !== b.isPre) {
+                        return a.isPre;
+                    }
+                    if (a.preType < b.preType) return true;
+                    if (a.preType > b.preType) return false;
+                    if (a.preNumber < b.preNumber) return true;
+                } catch (err) { }
+                return false;
+            }
+
+            function dispatchStatus(remoteVersion, changelog, isNewerVal) {
+                if (requestCompleted) return;
+                requestCompleted = true;
+
+                var targetUrl = "https://github.com/robkipa/ankifx";
+                var displayUrl = "github.com/robkipa/ankifx";
+                if (manifestUrl.indexOf("github") !== -1 || manifestUrl.indexOf("jsdelivr") !== -1) {
+                    var match = manifestUrl.match(/github(?:\.com)?\/([^\/]+\/[^\/]+)/) || manifestUrl.match(/jsdelivr\.net\/gh\/([^\/]+\/[^\/]+)/);
+                    if (match) {
+                        var slug = match[1].split("@")[0];
+                        targetUrl = "https://github.com/" + slug;
+                        displayUrl = "github.com/" + slug;
+                    }
+                }
+
+                computedStatus = {
+                    name: templateName,
+                    local: localVersion,
+                    remote: remoteVersion,
+                    isNewer: isNewerVal,
+                    changelog: changelog || "",
+                    targetUrl: targetUrl,
+                    displayUrl: displayUrl
+                };
+
+                window.dispatchEvent(new CustomEvent("ankifx:template-status", { detail: computedStatus }));
+            }
+
+            function handleManifest(manifestText) {
+                try {
+                    var manifest = JSON.parse(manifestText);
+                    var remoteVersion = (manifest.templates && manifest.templates[templateName])
+                        || manifest.latestTemplateVersion;
+                    if (remoteVersion && isNewer(localVersion, remoteVersion)) {
+                        dispatchStatus(remoteVersion, manifest.changelog, true);
+                    } else {
+                        dispatchStatus(remoteVersion || localVersion, "", false);
+                    }
+                } catch (err) { }
+            }
+
+            window.addEventListener("ankifx:request-template-status", function () {
+                if (computedStatus) {
+                    window.dispatchEvent(new CustomEvent("ankifx:template-status", { detail: computedStatus }));
+                }
+            });
+
+            var fetchTimeout = 2000;
+
+            if (typeof window.fetch === "function" && typeof window.AbortController === "function") {
+                var controller = new AbortController();
+                var signal = controller.signal;
+                var timeoutId = setTimeout(function () {
+                    controller.abort();
+                }, fetchTimeout);
+
+                window.fetch(manifestUrl, { signal: signal })
+                    .then(function (res) {
+                        clearTimeout(timeoutId);
+                        if (res.status === 200) {
+                            return res.text();
+                        }
+                        throw new Error("HTTP " + res.status);
+                    })
+                    .then(function (text) {
+                        if (text) handleManifest(text);
+                    })
+                    .catch(function () {
+                        runXHR();
+                    });
+            } else {
+                runXHR();
+            }
+
+            function runXHR() {
+                if (requestCompleted) return;
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", manifestUrl, true);
+                xhr.timeout = fetchTimeout;
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            handleManifest(xhr.responseText);
+                        }
+                    }
+                };
+                xhr.ontimeout = function () { xhr.abort(); };
+                xhr.onerror = function () { xhr.abort(); };
+                xhr.send();
+            }
+        });
+    })();
+</script>
+
+<div id="afx-config-field" style="display: none !important;">{{AnkiFXConfig}}</div>
+
+<script>
+    (function () {
+        var fieldContainer = document.getElementById("afx-config-field");
+        var configText = fieldContainer ? fieldContainer.textContent.trim() : "";
+        var parsed = false;
+
+        function decodeConfig(config) {
+            if (config && typeof config.termsText === 'string') {
+                try {
+                    config.termsText = decodeURIComponent(escape(atob(config.termsText)));
+                } catch (e) {
+                    console.error("[Card Template] Failed to decode termsText base64 string.", e);
+                }
+            }
+            return config;
+        }
+
+        if (configText) {
+            // Replace non-breaking spaces (\u00a0) with standard spaces to prevent JSON.parse syntax errors from Anki copy-paste
+            configText = configText.replace(/\u00a0/g, ' ');
+            // Resiliently strip trailing commas from JSON objects/arrays to prevent standard JSON.parse parsing failures
+            configText = configText.replace(/,(\s*[\]}])/g, '$1').trim();
+            try {
+                window.AnkiFX_Config = decodeConfig(JSON.parse(configText));
+                parsed = true;
+            } catch (e) {
+                console.error("[Card Template] Failed to parse embedded AnkiFXConfig JSON. Falling back to _afx_defaults.json. Error:", e);
+            }
+        }
+
+        if (!parsed) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "_afx_defaults.json", true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200 || xhr.status === 0) {
+                        try {
+                            window.AnkiFX_Config = decodeConfig(JSON.parse(xhr.responseText));
+                        } catch (err) {
+                            console.error("[Card Template] Failed to parse fallback _afx_defaults.json.", err);
+                            window.AnkiFX_Config = null; // Unblock loader on parse error
+                        }
+                    } else {
+                        console.error("[Card Template] Failed to load fallback _afx_defaults.json. Status: " + xhr.status);
+                        window.AnkiFX_Config = null; // Unblock loader on load error
+                    }
+                }
+            };
+            xhr.send();
+        }
+    })();
+</script>
+
+<!-- Load the local offline engine backup first (static load is 100% mobile-resilient and CORS-safe) -->
+<script src="_ankifx.js" onerror="console.warn('[Card Template] Local engine backup not found in collection.media.')"></script>
+
+<!-- Load the latest remote engine CDN (parsed sequentially, overrides local global if online) -->
+<script>
+    (function() {
+        var isRemoteActive = window.AnkiFX && window.AnkiFX.source === 'remote';
+        if (!isRemoteActive && !document.getElementById('ankifx-engine-script')) {
+            var script = document.createElement('script');
+            script.id = 'ankifx-engine-script';
+            script.src = window.AnkiFX_BOOTSTRAP.cdn;
+            script.onerror = function() { console.warn('[Card Template] CDN failed to load, using local engine.'); };
+            document.head.appendChild(script);
+        }
+    })();
+</script>
+
+<script>
+    (function () {
+        var remoteScript = document.getElementById('ankifx-engine-script');
+        if (remoteScript) {
+            if (window.AnkiFX && window.AnkiFX.source === 'remote') {
+                window.AnkiFX_Remote_Status = "loaded";
+                afxLog("Remote CDN engine script loaded synchronously.", "success");
+            } else if (window.AnkiFX_Remote_Status === "loaded" || window.AnkiFX_Remote_Status === "failed") {
+                if (window.AnkiFX_Remote_Status === "loaded") {
+                    afxLog("Remote CDN engine script already successfully loaded.", "success");
+                } else {
+                    afxLog("Remote CDN engine script fetch already failed (skipping re-fetch, using local fallback).", "info");
+                }
+            } else {
+                window.AnkiFX_Remote_Status = "pending";
+                afxLog("Remote CDN engine script download pending...", "pending");
+                remoteScript.addEventListener('load', function () {
+                    window.AnkiFX_Remote_Status = "loaded";
+                    afxLog("Remote CDN engine script loaded asynchronously.", "success");
+                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
+                });
+                remoteScript.addEventListener('error', function () {
+                    window.AnkiFX_Remote_Status = "failed";
+                    afxLog("Remote CDN engine script failed to load (falling back to local engine).", "warn");
+                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
+                });
+            }
+        } else if (window.AnkiFX && window.AnkiFX.source === 'remote') {
+            window.AnkiFX_Remote_Status = "loaded";
+            afxLog("Remote CDN engine script already active in window context.", "success");
+        }
+    })();
+</script>
+
+<script>
+    afxLog("Template loaded.", "info");
+
+    // Closure-scoped flags to prevent duplicate execution within the same card's lifecycle
+    var contentInitialized = false;
+    var ankiFXInitialized = false;
+
+    /**
+     * Resilient Polling AnkiFX Loader
+     * Periodically polls for ready dependencies to bypass asynchronous WKWebView execution lags.
+     */
+    function triggerAnkiFX(attempts = 0) {
+        window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
+        if (attempts === 0) {
+            afxLog("AnkiFX loader triggered.", "info");
+        }
+
+        const remoteScriptExists = !!document.getElementById('ankifx-engine-script');
+        const remoteStatus = window.AnkiFX_Remote_Status || (remoteScriptExists ? "pending" : "none");
+
+        const hasAnkiFX = typeof AnkiFX !== 'undefined';
+        const hasRun = typeof run === 'function';
+        const hasConfig = typeof AnkiFX_Config !== 'undefined';
+
+        if (hasAnkiFX && hasRun && hasConfig) {
+            // Wait for remote engine to finish loading or fail (up to 800ms)
+            const isWaitingForRemote = (remoteStatus === "pending") && (attempts < 16);
+            if (isWaitingForRemote) {
+                if (attempts % 5 === 0) {
+                    afxLog("Waiting for remote CDN script (Attempt " + attempts + ", status=" + remoteStatus + ")...", "pending");
+                }
+                setTimeout(() => triggerAnkiFX(attempts + 1), 50);
+                return;
+            }
+            // 1. First initialize AnkiFX if it is loaded
+            if (!ankiFXInitialized) {
+                try {
+                    afxLog("Initializing AnkiFX engine (Source: " + (AnkiFX.source || 'local') + ", Version: " + (AnkiFX.version || '1.0.0') + ")...", "info");
+                    ankiFXInitialized = true;
+                    AnkiFX.init();
+                    afxLog("AnkiFX engine initialized successfully.", "success");
+                } catch (e) {
+                    afxLog("AnkiFX engine initialization failed: " + e.message, "error");
+                    console.error("AnkiFX Start Error:", e);
+                }
+            }
+
+            // 2. Then run the card's native content/table generator
+            if (!contentInitialized) {
+                try {
+                    afxLog("Executing card rendering logic...", "info");
+                    contentInitialized = true;
+                    run();
+                    afxLog("Card rendered successfully.", "success");
+                } catch (e) {
+                    afxLog("Card rendering logic failed: " + e.message, "error");
+                    console.error("Card Content Run Error:", e);
+                }
+            }
+        } else if (attempts < 60) { // Poll for ~3 seconds
+            if (attempts % 10 === 0) {
+                afxLog("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ", Config=" + hasConfig + ")...", "pending");
+            }
+            setTimeout(() => triggerAnkiFX(attempts + 1), 50);
+        } else {
+            const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED") + ", Config: " + (hasConfig ? "Loaded" : "FAILED");
+            afxLog(err, "error");
+            console.error(err);
+            // Graceful fallback: always execute card content even if loader fails/timeouts
+            if (hasRun && !contentInitialized) {
+                try {
+                    afxLog("Loader timeout fallback: Executing card rendering logic...", "warn");
+                    contentInitialized = true;
+                    run();
+                } catch (runErr) {
+                    console.error("AnkiFX Fallback Card Content Run Error:", runErr);
+                }
+            }
+        }
+    }
+</script>
+
+<script>
+    // --- FINAL EXECUTION TRIGGER ---
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        triggerAnkiFX();
+    } else {
+        document.addEventListener('DOMContentLoaded', triggerAnkiFX);
+    }
+</script>
+
+<!-- Plain, Generic Front Template Layout -->
+<div class="anki-card-container">
+    <div id="card-front">{{Front}}</div>
+</div>
+<div class="ankifx-card" style="display:none;"></div>
+<img src="_ankifx.js" style="display:none !important;">
+<img src="_afx_defaults.json" style="display:none !important;">

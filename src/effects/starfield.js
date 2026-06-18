@@ -25,8 +25,49 @@ export function runStarfield(contexts, config) {
     currentW = contexts.width;
     currentH = contexts.height;
 
+    let planetsEnabled = localStorage.getItem('ankifx_starfield_planets') !== 'false';
+
+    effect.controls = [
+        {
+            type: 'button',
+            id: 'starfield-planet-toggle',
+            label: planetsEnabled ? '🪐 DISABLE PLANET' : '🪐 ENABLE PLANET',
+            onClick: () => {
+                planetsEnabled = !planetsEnabled;
+                localStorage.setItem('ankifx_starfield_planets', planetsEnabled);
+                if (effect.controls && effect.controls[0]) {
+                    effect.controls[0].label = planetsEnabled ? '🪐 DISABLE PLANET' : '🪐 ENABLE PLANET';
+                    AnkiFX.renderEffectControls(effect);
+                }
+            }
+        }
+    ];
+
     const stars = [];
-    const numStars = 8000;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    let estimated = 3500; // default fallback (mid-tier)
+    const cores = navigator.hardwareConcurrency;
+    if (typeof cores === 'number' && cores > 0 && !isNaN(cores)) {
+        if (isMobile) {
+            if (cores <= 4) {
+                estimated = 1500;
+            } else if (cores <= 8) {
+                estimated = 3500;
+            } else {
+                estimated = 5000;
+            }
+        } else {
+            if (cores <= 4) {
+                estimated = 4000;
+            } else {
+                estimated = 8000;
+            }
+        }
+    }
+    const numStars = Math.min(8000, Math.max(1000, estimated));
+
     
     // --- COMPACT SIMPLEX NOISE ENGINE ---
     const perm = new Uint8Array(512);
@@ -75,6 +116,8 @@ export function runStarfield(contexts, config) {
         return v;
     }
 
+    const paletteCache = {};
+
     class Planet {
         constructor() {
             this.active = false;
@@ -101,7 +144,13 @@ export function runStarfield(contexts, config) {
                 { name: 'classic', baseH: 30 + Math.random()*20, sat: 50, l: 80 }
             ];
             const template = templates[Math.floor(Math.random() * templates.length)];
-            this.generateGasGiantTexture(template);
+            
+            if (paletteCache[template.name]) {
+                this.textureCanvas = paletteCache[template.name];
+            } else {
+                this.generateGasGiantTexture(template);
+                paletteCache[template.name] = this.textureCanvas;
+            }
 
             if (this.type === 2) {
                 this.rings = Array.from({ length: 4 }, (_, i) => ({ r1: 1.6 + i * 0.2, opacity: 0.2 + Math.random() * 0.4 }));
@@ -128,9 +177,9 @@ export function runStarfield(contexts, config) {
         }
 
         generateGasGiantTexture(template) {
-            const tex = document.createElement('canvas'); tex.width = tex.height = 256;
+            const tex = document.createElement('canvas'); tex.width = tex.height = 128;
             const tctx = tex.getContext('2d');
-            const data = tctx.createImageData(256, 256);
+            const data = tctx.createImageData(128, 128);
             
             const h = template.baseH;
             const cA = this.hslToRgb(h, template.sat, template.l);
@@ -141,9 +190,9 @@ export function runStarfield(contexts, config) {
             const mix = (c1, c2, f) => ({ r: c1.r + (c2.r - c1.r) * f, g: c1.g + (c2.g - c1.g) * f, b: c1.b + (c2.b - c1.b) * f });
             const s = Math.random() * 1000;
 
-            for (let y = 0; y < 256; y++) {
-                for (let x = 0; x < 256; x++) {
-                    const py = y / 256 * 10, px = x / 256 * 10;
+            for (let y = 0; y < 128; y++) {
+                for (let x = 0; x < 128; x++) {
+                    const py = y / 128 * 10, px = x / 128 * 10;
                     let turb = Math.abs(fBm(0, py * 0.4, s, 3));
                     const offsetY = py + fBm(px * 0.5, py * 0.5, s) * turb * 4;
                     const offsetX = px + fBm(py * 0.5, px * 0.5, s + 50) * turb * 2;
@@ -155,7 +204,7 @@ export function runStarfield(contexts, config) {
                     if (n2 > 0.6) finalColor = mix(finalColor, cC, (n2 - 0.6) * 1.5);
 
                     let brightness = 1.0 + (fBm(offsetX, offsetY, s + 300, 2) * 0.2); 
-                    const idx = (y * 256 + x) * 4;
+                    const idx = (y * 128 + x) * 4;
                     data.data[idx] = Math.min(255, finalColor.r * brightness);
                     data.data[idx+1] = Math.min(255, finalColor.g * brightness);
                     data.data[idx+2] = Math.min(255, finalColor.b * brightness);
@@ -242,8 +291,12 @@ export function runStarfield(contexts, config) {
         const cy = currentH / 2;
 
         time += 0.01;
-        planet.update();
-        planet.draw(ctx);
+        if (planetsEnabled) {
+            planet.update();
+            planet.draw(ctx);
+        } else {
+            planet.active = false;
+        }
 
         for (let i = 0; i < numStars; i++) {
             const star = stars[i];

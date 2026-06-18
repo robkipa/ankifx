@@ -11,7 +11,7 @@
     "<ul style=\"margin-top: 1rem; padding-left: 1.5rem; text-align: left;\">",
     "    <li>All effects are performance-optimized for mobile.</li>",
     "    <li>Music is provided via the Keygen Jukebox.</li>",
-    "    <li>Toggle debug: true in configs to reveal developer clear-storage utilities.</li>",
+    "    <li>Toggle debug: true in configs to reveal debug mode.</li>",
     "</ul>",
     "<p><strong>Sources:</strong></p>",
     "<ul>",
@@ -23,5 +23,6 @@
   "defaultEffect": "geometry",
   "debug": false,
   "countdown": 30,
-  "marqueePosition": "top"
+  "marqueePosition": "top",
+  "enableShuffle": true
 }

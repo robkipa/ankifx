@@ -149,8 +149,8 @@ body>*,
 }
 
 /* Nav buttons only visible if agreed AND music is ON */
-.afx-agreed-state.afx-bgm-active #afx-btn-back,
-.afx-agreed-state.afx-bgm-active #afx-btn-skip {
+.afx-agreed-state.afx-music-active #afx-btn-back,
+.afx-agreed-state.afx-music-active #afx-btn-skip {
     display: flex !important;
 }
 
@@ -164,6 +164,24 @@ body>*,
 
 .afx-agreed-state .afx-dialog {
     display: none !important;
+}
+
+/* --- AnkiDroid Scroll Fix --- */
+html.afx-ankidroid,
+html.afx-ankidroid body {
+    overflow: auto !important;
+    height: auto !important;
+    min-height: 100% !important;
+}
+
+html.afx-ankidroid .card {
+    overflow: visible !important;
+    height: auto !important;
+}
+
+html.afx-ankidroid #qa {
+    overflow-y: visible !important;
+    height: auto !important;
 }
 
 /* Reveal corner controls only after agreement */
@@ -263,9 +281,14 @@ body>*,
 
 /* Unified Control Components */
 .afx-action-btn {
-    background: transparent;
-    color: #fff;
-    border: none;
+    --button-gradient-start: transparent !important;
+    --button-gradient-end: transparent !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background: transparent !important;
+    color: #fff !important;
+    border: none !important;
+    outline: none !important;
     width: 100%;
     height: 100%;
     cursor: pointer;
@@ -280,6 +303,16 @@ body>*,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all 0.2s ease;
+}
+
+.afx-action-btn:hover {
+    --button-gradient-start: rgba(255, 255, 255, 0.08) !important;
+    --button-gradient-end: rgba(255, 255, 255, 0.08) !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    color: var(--afx-accent, #ff00ff) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .afx-select {
@@ -619,14 +652,21 @@ html.afx-effect-debug #qa {
     padding: 0;
 }
 
-/* --- BGM status color reactivity (no inline styles) --- */
-#afx-bgm-status {
+/* --- Music status color reactivity (no inline styles) --- */
+#afx-music-status {
     color: #fff;
     transition: color 0.2s ease;
 }
 
-.afx-bgm-active #afx-bgm-status {
+.afx-music-active #afx-music-status {
     color: #ff6b6b;
+}
+
+/* --- Card Visibility Toggle Styles --- */
+.afx-card-hidden .afx-mcq-card,
+.afx-card-hidden .afx-mcq-back,
+.afx-card-hidden .anki-card-container {
+    display: none !important;
 }
 
 /* --- DEBUG EFFECT DOM PANEL AND METRICS --- */
@@ -772,4 +812,156 @@ html.afx-effect-debug .afx-debug-container {
 
 .afx-debug-panel.console-logs {
     margin-top: 16px;
+}
+
+/* --- Legacy Template Migration Toast --- */
+.afx-legacy-toast-container {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translate(-50%, -20px);
+    width: 90%;
+    max-width: 520px;
+    background: rgba(18, 14, 24, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 0, 255, 0.35);
+    border-radius: 12px;
+    padding: 14px 20px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    opacity: 0;
+    pointer-events: auto;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    z-index: 999999;
+}
+
+.afx-legacy-toast-container.afx-legacy-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.afx-legacy-toast-content {
+    flex: 1;
+    color: #e5e5e7;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.afx-legacy-toast-title {
+    font-weight: 600;
+    color: #ff33ff;
+    margin: 0 0 4px 0;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+}
+
+.afx-legacy-toast-link {
+    color: #00f3ff;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.afx-legacy-toast-link:hover {
+    color: #33f7ff;
+}
+
+.afx-legacy-toast-close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    margin-top: -2px;
+    transition: color 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.afx-legacy-toast-close:hover {
+    color: #ffffff;
+    transform: scale(1.1);
+}
+
+/* --- Template Update Notice --- */
+.afx-update-notice {
+    background: rgba(30, 20, 35, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 0, 255, 0.4);
+    border-radius: 12px;
+    padding: 12px 18px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    opacity: 0;
+    pointer-events: auto;
+    transition: opacity 0.38s ease, transform 0.38s ease;
+    box-sizing: border-box;
+    transform: translateY(-20px);
+    font-family: SFMono-Regular, Consolas, Menlo, monospace;
+    margin: 10px 0;
+}
+
+.afx-update-notice.afx-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.afx-update-notice-content {
+    flex: 1;
+    color: #f0f0f0;
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.afx-update-notice-title {
+    font-weight: bold;
+    color: #ff00ff;
+    margin: 0 0 2px 0;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.afx-update-notice-link {
+    color: #00ffff;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.afx-update-notice-close {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.afx-update-notice-close:hover {
+    color: #fff;
+    transform: scale(1.15);
 }

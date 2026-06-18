@@ -73,6 +73,14 @@ export class Marquee {
             ctx.strokeStyle = this.outline;
         }
 
+        const hasStaticShadow = this.shadowColor && this.shadowColor !== 'inherit';
+        if (hasStaticShadow) {
+            ctx.shadowColor = this.shadowColor;
+            ctx.shadowBlur = this.shadowBlur;
+        } else if (!this.shadowColor) {
+            ctx.shadowBlur = 0;
+        }
+
         const paddingTop = 50 * scale;
         const paddingBottom = 32 * scale;
         const yBase = (this.position === 'bottom') ? (h - paddingBottom) : paddingTop;
@@ -88,12 +96,9 @@ export class Marquee {
 
                 ctx.fillStyle = this.colorFn ? this.colorFn(this.time, i) : this.color;
                 
-                if (this.shadowColor) {
-                    // allows dynamic coloring
-                    ctx.shadowColor = this.shadowColor === 'inherit' ? ctx.fillStyle : this.shadowColor;
+                if (this.shadowColor === 'inherit') {
+                    ctx.shadowColor = ctx.fillStyle;
                     ctx.shadowBlur = this.shadowBlur;
-                } else {
-                    ctx.shadowBlur = 0;
                 }
 
                 if (this.outline) {
@@ -102,10 +107,15 @@ export class Marquee {
 
                 ctx.fillText(char, xPos, yPos);
                 
-                if (this.shadowColor) {
+                if (this.shadowColor === 'inherit') {
                     ctx.shadowBlur = 0;
                 }
             }
+        }
+
+        // Clean up context shadow state if we applied static shadow
+        if (hasStaticShadow) {
+            ctx.shadowBlur = 0;
         }
     }
 }

@@ -10,8 +10,9 @@ import { effect as eff7 } from './lavalamp.js';
 import { effect as eff8 } from './mandelbrot.js';
 import { effect as eff9 } from './matrix.js';
 import { effect as eff10 } from './none.js';
-import { effect as eff11 } from './starfield.js';
-import { effect as eff12 } from './tetris.js';
+import { effect as eff11 } from './quantum.js';
+import { effect as eff12 } from './starfield.js';
+import { effect as eff13 } from './tetris.js';
 
 export const EFFECTS = {
     'aurora': eff0,
@@ -25,6 +26,7 @@ export const EFFECTS = {
     'mandelbrot': eff8,
     'matrix': eff9,
     'none': eff10,
-    'starfield': eff11,
-    'tetris': eff12,
+    'quantum': eff11,
+    'starfield': eff12,
+    'tetris': eff13,
 };

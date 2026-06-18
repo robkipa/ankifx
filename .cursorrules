@@ -35,7 +35,7 @@ AnkiFX is a visuals-heavy project. Always prioritize rich aesthetics, smooth ani
 
 ## 6. Logging Conventions
 
-All `console.*` calls **must** include a bracketed subsystem prefix so messages are identifiable in the debug panel console. Use the exact prefixes below — do not invent new ones without updating this list:
+All `console.*` calls and loader logs **must** include a bracketed subsystem prefix so messages are identifiable in the debug panel console and diagnostics panel. Use the exact prefixes below — do not invent new ones without updating this list:
 
 | Subsystem | Prefix |
 |---|---|
@@ -45,21 +45,59 @@ All `console.*` calls **must** include a bracketed subsystem prefix so messages 
 | Lava Lamp effect | `[LavaLamp/WebGL]` |
 | Stripe Gradient / MiniGl | `[Gradient/WebGL]` |
 | New effects | `[EffectName]` or `[EffectName/WebGL]` |
+| HTML Card Templates (loader events) | `[Card Template]` |
+| Version Comparative / Takeover Loader in `src/index.js` | `[Loader]` |
 
 **Rules:**
-1. **Level discipline**: use `console.error` for unrecoverable failures, `console.warn` for degraded-but-continuing states, `console.log` for lifecycle milestones only. Do not `console.log` inside hot render/animation loops.
+1. **Level discipline**: use `console.error` for unrecoverable failures, `console.warn` for degraded-but-continuing states, `console.log` or `console.info` for lifecycle milestones only. Do not log inside hot render/animation loops.
 2. **Error objects**: log `e.message` (not the raw Error object) to keep output readable on mobile/WKWebView.
 3. **Console intercept safety**: `debug.js` installs a console intercept. Never snapshot `console.*` methods at module top-level — WKWebView may not have initialised them yet. Always bind inside an `if (!window.__console_intercepted__)` guard, and include a `|| (() => {})` fallback.
 
-**Loader logs (card templates only):**
-Use the `afxLog(msg, level)` helper — never push raw strings into `window.AnkiFX_Loader_Logs`. Valid levels: `"success"`, `"error"`, `"warn"`, `"pending"`, `"info"`.
+**Loader logs (diagnostics panel):**
+Loader events and takeover history are written to `window.AnkiFX_Loader_Logs`.
+- In HTML card templates, use the `afxLog(msg, level)` helper which prefixes messages with `[Card Template]`.
+- In `src/index.js` (takeover logic), prefix logs pushed to `window.AnkiFX_Loader_Logs` with `[Loader]`.
+- Valid log levels: `"success"`, `"error"`, `"warn"`, `"pending"`, `"info"`.
 
 ```js
-// ✅ correct
-afxLog("AnkiFX.init() success.", "success");
-afxLog("AnkiFX init error: " + e.message, "error");
+// ✅ correct (HTML Card Templates)
+function afxLog(msg, level) {
+    window.AnkiFX_Loader_Logs.push({ msg: "[Card Template] " + msg, level: level || 'info' });
+}
 
-// ❌ wrong — plain string loses level metadata
-window.AnkiFX_Loader_Logs.push("AnkiFX.init() success.");
+
+// ✅ correct (src/index.js takeover)
+window.AnkiFX_Loader_Logs.push({
+    msg: `[Loader] Active engine v${activeVersion} destroyed successfully.`,
+    level: 'success'
+});
 ```
+
+## 7. WebGL Shader Lifecycle & Resource Safety
+To prevent severe WebGL resource and memory leaks in WebKit WebViews (such as AnkiMobile on iOS), you MUST follow these shader lifetime rules:
+- **Immediate Detachment & Deletion**: For all WebGL effects, compile shaders must be detached (`gl.detachShader(program, shader)`) and deleted (`gl.deleteShader(shader)`) *immediately* after the WebGL program has successfully linked (`gl.linkProgram(program)`).
+- **Cleanup on Stop**: When `stop()` is called, all linked WebGL programs, framebuffers, textures, and buffer objects must be deleted (`gl.deleteProgram`, `gl.deleteTexture`, `gl.deleteBuffer`, etc.) to return the WebGL context to a clean state.
+
+## 8. Security & HTML Escaping
+- **XSS Prevention**: Never inject dynamic or user-controlled strings (like the changelog or update message) directly into the DOM using `innerHTML` or string interpolation without first escaping them.
+- **Escape Helper**: Use the standard `escapeHTML` helper function:
+  ```javascript
+  function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+  }
+  ```
+
+## 9. Build, Git Hooks, and CI/CD Architecture
+- **Post-Commit Hook**: The `.git/hooks/post-commit` script is the canonical build source. It automatically compiles and commits all tracked build outputs (`build/_ankifx.js`, `build/_afx_defaults.json`, `build/_afx_version.json`, `build/card templates/`) on every source commit.
+- **Release Trigger**: Releases are triggered by pushing a tag matching `v*` (e.g., `v1.0.0`) to the `main` branch.
+- **CI Verification**: The GitHub Actions release workflow (`.github/workflows/release.yml`) validates that committed build outputs match a clean rebuild, except for `build/_ankifx.js` (which contains a non-deterministic build timestamp `process.env.BUILD_DATE`).
+- **Gitignored Files**: Ensure that `build/configs/`, private configs (`configs/_afx_*.json` except defaults), and `ankifx.local.json` are gitignored and never committed or processed by CI.
+- **CDN Versioning**: Public card templates must reference the major version tag on the jsDelivr CDN (`https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_ankifx.js`) to receive non-breaking automatic updates.
+- **Upgrade Notice Banner**: Ensure update notice banners store their dismissed state in `localStorage` so they do not re-appear after dismissal.
 

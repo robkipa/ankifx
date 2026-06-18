@@ -1,119 +1,76 @@
-let animationId = null;
-let currentW = 0, currentH = 0;
-let gl = null;
-let program = null;
-let blobs = [];
-let lastTime = 0;
-let positionBuffer = null;
-
-let mouse = { x: -1000, y: -1000, dx: 0, dy: 0, down: false };
-let canvasEl = null;
-
-export const effect = {
-    id: 'lavalamp',
-    name: 'Lava Lamp',
-    run: runLavalamp,
-    stop: stopLavalamp,
-    onResize: handleResize,
-    marqueeFont: {
-        color: '#ffccaa',
-        shadowColor: 'rgba(255, 100, 0, 0.8)',
-        shadowBlur: 10
-    }
-};
+import { getShaderPrecision } from '../core/webgl-utils.js';
 
 const MAX_BLOBS = 6;
 
 class LavaBlob {
     constructor(x, y, radius, h) {
         this.pos = { x, y };
-        // Small initial upward nudge in pixels/second (px/s)
         this.vel = { x: 0, y: -(Math.random() * 0.6 + 0.3) };
         this.radius = radius;
         
-        // Spawn temperature based on position — cold if near bottom (about to heat up)
-        // This ensures the simulation starts in a realistic pooled state
         const normalizedY = y / h;
         this.temperature = 0.15 + normalizedY * 0.3 + Math.random() * 0.15;
         
         this.buoyancy = 0;
         this.noiseOffset = Math.random() * 1000;
-        
-        // Smoothed speed for stable axis-aligned stretching
         this.smoothSpeedY = 0;
     }
 
-    update(dt, w, h) {
-        // Slower thermal rates — longer dwell at base building up energy
-        if (this.pos.y > h * 0.80) {        // catches submerged blobs at bottom
-            this.temperature += 0.05 * dt;   // was 0.09 — takes longer to heat fully
+    update(dt, w, h, time, mouse) {
+        if (this.pos.y > h * 0.80) {
+            this.temperature += 0.05 * dt;
         } else if (this.pos.y > h * 0.60) {
-            this.temperature += 0.02 * dt;   // was 0.03
-        } else if (this.pos.y < h * 0.20) { // catches ceiling-absorbed blobs at top
-            this.temperature -= 0.04 * dt;   // was 0.05
+            this.temperature += 0.02 * dt;
+        } else if (this.pos.y < h * 0.20) {
+            this.temperature -= 0.04 * dt;
         } else if (this.pos.y < h * 0.40) {
-            this.temperature -= 0.015 * dt;  // was 0.02
+            this.temperature -= 0.015 * dt;
         }
-        // In the middle, temperature is perfectly preserved (thermal inertia)
 
         this.temperature = Math.max(0, Math.min(1, this.temperature));
+        this.buoyancy = this.temperature * 4.0 - 2.0;
+        this.vel.y -= this.buoyancy * 10.0 * dt;
 
-        // Buoyancy increases with heat: hot = positive (rises), cold = negative (sinks)
-        // Wider buoyancy range — more force once threshold is crossed
-        this.buoyancy = this.temperature * 4.0 - 2.0;  // was 3.4 - 1.7 (now -2.0 to +2.0)
-
-        // Vertical movement with convective force in px/s^2 (consistent units)
-        this.vel.y -= this.buoyancy * 10.0 * dt;   // was 6.0 — faster transit when detached
-
-        // Horizontal turbulence (ultra slow, subtle drift)
-        const nx = Math.sin(this.noiseOffset + lastTime * 0.0002) * 0.1;
-        this.vel.x += nx * dt * 0.3;  // 5x less lateral drift
+        const nx = Math.sin(this.noiseOffset + time * 0.0002) * 0.1;
+        this.vel.x += nx * dt * 0.3;
         
-        // Gentle center-seeking when thermally neutral (hovering Column)
         const neutrality = 1.0 - Math.min(Math.abs(this.buoyancy) / 0.8, 1.0);
         const centerPull = (w * 0.5 - this.pos.x) * 0.003 * neutrality;
         this.vel.x += centerPull * dt;
         
-        // Container boundaries: proportional pushes in px/s^2 (soft containment)
-        // Left/Right walls
         if (this.pos.x < this.radius) {
-            this.vel.x += (this.radius - this.pos.x) * 2.0 * dt;  // softer bounce
+            this.vel.x += (this.radius - this.pos.x) * 2.0 * dt;
         }
         if (this.pos.x > w - this.radius) {
             this.vel.x -= (this.pos.x - (w - this.radius)) * 2.0 * dt;
         }
-        // Ceiling (top boundary - let them go completely off-screen for perfect top cap absorption)
         const topBound = -this.radius * 0.5;
         if (this.pos.y < topBound) {
             this.vel.y += (topBound - this.pos.y) * 8.0 * dt;
         }
-        // Floor (bottom boundary - let them submerge 150% into the base to fully merge/absorb)
         const bottomBound = h + this.radius * 0.5;
         if (this.pos.y > bottomBound) {
             this.vel.y -= (this.pos.y - bottomBound) * 8.0 * dt;
         }
 
-        // Viscous drag - split drag by axis (heavy lateral viscosity vs free vertical rise)
         const lateralDrag = Math.pow(0.97, dt * 60);
         this.vel.x *= lateralDrag;
         
-        // Threshold-based drag: drag is much lower when blob is freely traveling
         const absB = Math.abs(this.buoyancy);
-        const detached = absB > 0.8; // threshold for free movement (temp > 0.7 or < 0.3)
+        const detached = absB > 0.8;
         const verticalDrag = detached
-            ? Math.pow(0.994, dt * 60)   // nearly free travel — fast transit
-            : Math.pow(0.975, dt * 60);  // pooling state — high viscosity holds it
+            ? Math.pow(0.994, dt * 60)
+            : Math.pow(0.975, dt * 60);
         this.vel.y *= verticalDrag;
         
-        // Near-boundary settling: damp only horizontal velocity near boundaries, never vertical
-        // Vertical must stay free so buoyancy can extract the blob
         const floorProximity = Math.max(0, (this.pos.y - (h * 0.82)) / (h * 0.18));
         const ceilingProximity = Math.max(0, ((h * 0.18) - this.pos.y) / (h * 0.18));
         const lateralDamping = Math.pow(0.88, dt * 60 * (floorProximity + ceilingProximity));
         this.vel.x *= lateralDamping;
 
-        // Interaction (converted to px/s impact) - push mostly vertically
-        if (mouse.down) {
+        this.smoothSpeedY += (Math.abs(this.vel.y) - this.smoothSpeedY) * (1.0 - Math.pow(0.05, dt));
+
+        if (mouse && mouse.down) {
             const dx = this.pos.x - mouse.x;
             const dy = this.pos.y - mouse.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -124,10 +81,6 @@ class LavaBlob {
             }
         }
 
-        // Smooth speed Y for stable, axis-aligned stretch
-        this.smoothSpeedY += (Math.abs(this.vel.y) - this.smoothSpeedY) * (1.0 - Math.pow(0.05, dt));
-
-        // Apply velocity directly (in px/s, removing * 60)
         this.pos.x += this.vel.x * dt;
         this.pos.y += this.vel.y * dt;
     }
@@ -138,7 +91,6 @@ const vsSource = `
     varying vec2 vUv;
     void main() {
         vUv = aPosition * 0.5 + 0.5;
-        // Match canvas 2D coordinates (Y=0 is top)
         vUv.y = 1.0 - vUv.y;
         gl_Position = vec4(aPosition, 0.0, 1.0);
     }
@@ -151,10 +103,9 @@ const fsSource = `
     uniform vec2 uResolution;
     uniform float uTime;
     
-    uniform vec4 uBlobs[${MAX_BLOBS}]; // x, y, radius, stretch
-    uniform float uBlobTemp[${MAX_BLOBS}]; // temperature
+    uniform vec4 uBlobs[${MAX_BLOBS}];
+    uniform float uBlobTemp[${MAX_BLOBS}];
     
-    // Polynomial smooth minimum
     float smin(float a, float b, float k) {
         float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
         return mix(b, a, h) - k * h * (1.0 - h);
@@ -165,15 +116,12 @@ const fsSource = `
         for (int i = 0; i < ${MAX_BLOBS}; i++) {
             float stretchY = max(uBlobs[i].w, 0.85);
             vec2 lp = p - uBlobs[i].xy;
-            // Squash coordinate space: compress Y by stretchY, expand X to preserve area
-            // This deforms the metric, not the SDF, so gradients stay well-behaved
             lp.x *= sqrt(stretchY);
             lp.y /= sqrt(stretchY);
             float blob = length(lp) - uBlobs[i].z;
             d = smin(d, blob, 60.0);
         }
         
-        // Base merging constraint
         float floorDist = uResolution.y - p.y;
         d = smin(d, floorDist - 35.0, 120.0);
         
@@ -185,7 +133,7 @@ const fsSource = `
         vec3 n = vec3(
             map(p + e.xy) - d,
             map(p + e.yx) - d,
-            4.0 - min(0.0, d) * 0.5 // Flatten the center to remove sharp 'nipples'
+            4.0 - min(0.0, d) * 0.5
         );
         return normalize(n);
     }
@@ -194,18 +142,11 @@ const fsSource = `
         vec2 p = vUv * uResolution;
         float d = map(p);
         
-        // Background gradient
         vec3 bg = mix(vec3(0.08, 0.01, 0.0), vec3(0.2, 0.04, 0.0), vUv.y);
-        
-        // Lava Palette
-        vec3 lavaBase = vec3(0.8, 0.15, 0.0);
-        vec3 lavaHot = vec3(1.0, 0.6, 0.1);
-        
-        // Continuous soft subsurface glow around blobs
         float glow = exp(-max(0.0, d) * 0.02);
         vec3 glowBg = bg + vec3(0.95, 0.35, 0.0) * glow * 0.45;
+        vec3 lavaHot = vec3(1.0, 0.6, 0.1);
         
-        // Soft edge anti-aliasing
         float alpha = smoothstep(3.0, -3.0, d);
         
         if (d > 3.0) {
@@ -214,264 +155,346 @@ const fsSource = `
         }
         
         vec3 n = calcNormal(p, d);
-        
-        // Lighting setup
-        vec3 lightDir = normalize(vec3(0.0, 1.0, 0.5)); // Warm base light
+        vec3 lightDir = normalize(vec3(0.0, 1.0, 0.5));
         vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
         
         float diff = max(dot(n, lightDir), 0.0);
-        
         vec3 halfDir = normalize(lightDir + viewDir);
         float spec = pow(max(dot(n, halfDir), 0.0), 32.0);
         
-        // Thickness-based translucency inside the lava (d < 0)
         float thickness = abs(d);
         float translucency = exp(-thickness * 0.008);
-        
-        // Glowing orange-white inside thin filaments/necks, deep red in bodies
         vec3 dynamicLavaBase = mix(vec3(0.6, 0.05, 0.0), vec3(1.0, 0.55, 0.05), translucency);
         
-        // Color mapping
         vec3 col = mix(dynamicLavaBase, lavaHot, diff);
-        col += vec3(1.0, 0.9, 0.6) * spec * 0.7; // Highlights
+        col += vec3(1.0, 0.9, 0.6) * spec * 0.7;
         
-        // Ambient rim light
         float rim = 1.0 - max(dot(n, viewDir), 0.0);
         col += vec3(0.9, 0.2, 0.0) * pow(rim, 3.0) * 0.8;
         
-        // Blend lava directly with the glowing background (no black borders!)
         vec3 finalCol = mix(glowBg, col, alpha);
-        
         gl_FragColor = vec4(finalCol, 1.0);
     }
 `;
 
-function compileShader(type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('[LavaLamp/WebGL] Shader compile error:', gl.getShaderInfoLog(shader));
-        gl.deleteShader(shader);
-        return null;
-    }
-    return shader;
-}
-
-function initWebGL() {
-    const vs = compileShader(gl.VERTEX_SHADER, vsSource);
-    const fs = compileShader(gl.FRAGMENT_SHADER, fsSource);
-    
-    program = gl.createProgram();
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.error('[LavaLamp/WebGL] Program link error:', gl.getProgramInfoLog(program));
-        return false;
-    }
-    
-    gl.useProgram(program);
-    
-    positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    const positions = new Float32Array([
-        -1.0, -1.0,
-         1.0, -1.0,
-        -1.0,  1.0,
-        -1.0,  1.0,
-         1.0, -1.0,
-         1.0,  1.0
-    ]);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-    
-    const posAttr = gl.getAttribLocation(program, 'aPosition');
-    gl.enableVertexAttribArray(posAttr);
-    gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
-    
-    program.uResolution = gl.getUniformLocation(program, 'uResolution');
-    program.uTime = gl.getUniformLocation(program, 'uTime');
-    program.uBlobs = gl.getUniformLocation(program, 'uBlobs');
-    program.uBlobTemp = gl.getUniformLocation(program, 'uBlobTemp');
-    
-    return true;
-}
-
-export function runLavalamp(contexts, config) {
-    gl = contexts.gl;
-    canvasEl = contexts.canvasGL;
-    currentW = contexts.width;
-    currentH = contexts.height;
-    
-    if (!gl) {
-        console.error('[LavaLamp] WebGL context required — cannot run effect.');
-        return;
-    }
-    
-    if (!initWebGL()) return;
-    
-    // Initialize simulation
-    blobs = [];
-    let attempts = 0;
-    while (blobs.length < MAX_BLOBS && attempts < 200) {
-        attempts++;
-        const radius = 70 + Math.random() * 60; // slightly smaller range
-        const x = radius + Math.random() * (currentW - radius * 2);
-        const y = radius + Math.random() * (currentH - radius * 2);
+class LavalampInstance {
+    constructor(contexts, config) {
+        this.contexts = contexts;
+        this.config = config;
+        this.destroyed = false;
         
-        // Check against already-placed blobs
-        let overlaps = false;
-        for (const b of blobs) {
-            const dx = b.pos.x - x;
-            const dy = b.pos.y - y;
-            if (Math.sqrt(dx*dx + dy*dy) < b.radius + radius + 10) {
-                overlaps = true;
-                break;
+        this.gl = null;
+        this.program = null;
+        this.positionBuffer = null;
+        this.blobs = [];
+        this.lastTime = 0;
+        this.currentW = contexts.width;
+        this.currentH = contexts.height;
+        this.canvasEl = contexts.canvasGL;
+        
+        this.mouse = { x: -1000, y: -1000, dx: 0, dy: 0, down: false };
+        this.animationId = null;
+
+        // Preallocate arrays inside instance to avoid per-frame GC pressure
+        this.blobData = new Float32Array(MAX_BLOBS * 4);
+        this.tempData = new Float32Array(MAX_BLOBS);
+    }
+
+    compileShader(type, source) {
+        const gl = this.gl;
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error('[LavaLamp/WebGL] Shader compile error:', gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+            return null;
+        }
+        return shader;
+    }
+
+    init(gl) {
+        this.gl = gl;
+        const vs = this.compileShader(gl.VERTEX_SHADER, vsSource);
+        
+        // Dynamically inject resolved precision into FS
+        const cleanedFs = fsSource.replace(/\bprecision\s+(highp|mediump|lowp)\s+float\s*;/gim, '');
+        const precision = getShaderPrecision(gl);
+        const finalFs = `precision ${precision} float;\n` + cleanedFs;
+
+        const fs = this.compileShader(gl.FRAGMENT_SHADER, finalFs);
+        if (!vs || !fs) return;
+        
+        this.program = gl.createProgram();
+        gl.attachShader(this.program, vs);
+        gl.attachShader(this.program, fs);
+        gl.linkProgram(this.program);
+        
+        gl.detachShader(this.program, vs);
+        gl.detachShader(this.program, fs);
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+
+        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+            console.error('[LavaLamp/WebGL] Program link error:', gl.getProgramInfoLog(this.program));
+            gl.deleteProgram(this.program);
+            return;
+        }
+        
+        gl.useProgram(this.program);
+        
+        this.positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        const positions = new Float32Array([
+            -1.0, -1.0,
+             1.0, -1.0,
+            -1.0,  1.0,
+            -1.0,  1.0,
+             1.0, -1.0,
+             1.0,  1.0
+        ]);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+        
+        const posAttr = gl.getAttribLocation(this.program, 'aPosition');
+        gl.enableVertexAttribArray(posAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+        
+        this.program.uResolution = gl.getUniformLocation(this.program, 'uResolution');
+        this.program.uTime = gl.getUniformLocation(this.program, 'uTime');
+        this.program.uBlobs = gl.getUniformLocation(this.program, 'uBlobs');
+        this.program.uBlobTemp = gl.getUniformLocation(this.program, 'uBlobTemp');
+        
+        // Initialize simulation
+        this.blobs = [];
+        let attempts = 0;
+        while (this.blobs.length < MAX_BLOBS && attempts < 200) {
+            attempts++;
+            const radius = 70 + Math.random() * 60;
+            const x = radius + Math.random() * (this.currentW - radius * 2);
+            const y = radius + Math.random() * (this.currentH - radius * 2);
+            
+            let overlaps = false;
+            for (const b of this.blobs) {
+                const dx = b.pos.x - x;
+                const dy = b.pos.y - y;
+                if (Math.sqrt(dx*dx + dy*dy) < b.radius + radius + 10) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps) this.blobs.push(new LavaBlob(x, y, radius, this.currentH));
+        }
+        while (this.blobs.length < MAX_BLOBS) {
+            const radius = 70 + Math.random() * 60;
+            const x = radius + Math.random() * (this.currentW - radius * 2);
+            const y = radius + Math.random() * (this.currentH - radius * 2);
+            this.blobs.push(new LavaBlob(x, y, radius, this.currentH));
+        }
+        
+        this.lastTime = performance.now();
+        
+        this.bindEvents();
+        this.animationId = requestAnimationFrame(this.loop);
+    }
+
+    loop = (now) => {
+        if (this.destroyed) return;
+        if (typeof window !== 'undefined' && window.AnkiFX && window.AnkiFX.currentEffectId !== 'lavalamp') return;
+
+        if (window.AnkiFX && window.AnkiFX.isContextLost) {
+            this.animationId = requestAnimationFrame(this.loop);
+            return;
+        }
+
+        try {
+            this.render(now);
+            this.animationId = requestAnimationFrame(this.loop);
+        } catch (err) {
+            console.error('[AnkiFX/Lavalamp] Render loop execution crash:', err);
+            if (window.AnkiFX && typeof window.AnkiFX.onRenderFailure === 'function') {
+                window.AnkiFX.onRenderFailure(err);
             }
         }
-        if (!overlaps) blobs.push(new LavaBlob(x, y, radius, currentH));
-    }
-    // Fallback if space is extremely tight (e.g. very small window)
-    while (blobs.length < MAX_BLOBS) {
-        const radius = 70 + Math.random() * 60;
-        const x = radius + Math.random() * (currentW - radius * 2);
-        const y = radius + Math.random() * (currentH - radius * 2);
-        blobs.push(new LavaBlob(x, y, radius, currentH));
-    }
-    
-    lastTime = performance.now();
-    
-    // Bind interaction events
-    bindEvents();
-    
-    animationId = requestAnimationFrame(render);
-}
+    };
 
-function handleResize(w, h, dpr) {
-    currentW = w;
-    currentH = h;
-    if (gl) {
-        gl.viewport(0, 0, w * dpr, h * dpr);
-    }
-}
+    render(now) {
+        const gl = this.gl;
+        if (!gl || this.destroyed) return;
 
-function render(now) {
-    const dt = Math.min((now - lastTime) / 1000, 0.05); // cap dt
-    lastTime = now;
-    
-    // Update simulation
-    const blobData = new Float32Array(MAX_BLOBS * 4);
-    const tempData = new Float32Array(MAX_BLOBS);
-    
-    for (let i = 0; i < MAX_BLOBS; i++) {
-        blobs[i].update(dt, currentW, currentH);
+        const dt = Math.min((now - this.lastTime) / 1000, 0.05);
+        this.lastTime = now;
+        
+        for (let i = 0; i < MAX_BLOBS; i++) {
+            this.blobs[i].update(dt, this.currentW, this.currentH, now, this.mouse);
+        }
+        
+        for (let i = 0; i < MAX_BLOBS; i++) {
+            const b = this.blobs[i];
+            
+            const stretch = Math.max(0.85, 
+                1.0 +
+                Math.min(b.smoothSpeedY * 0.028, 0.7) *
+                (0.4 + b.temperature * 0.6)
+            );
+            
+            this.blobData[i * 4 + 0] = b.pos.x;
+            this.blobData[i * 4 + 1] = b.pos.y;
+            this.blobData[i * 4 + 2] = b.radius;
+            this.blobData[i * 4 + 3] = stretch;
+            
+            this.tempData[i] = b.temperature;
+        }
+        
+        gl.useProgram(this.program);
+        gl.uniform2f(this.program.uResolution, this.currentW, this.currentH);
+        gl.uniform1f(this.program.uTime, now * 0.001);
+        gl.uniform4fv(this.program.uBlobs, this.blobData);
+        gl.uniform1fv(this.program.uBlobTemp, this.tempData);
+        
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        this.mouse.dx = 0;
+        this.mouse.dy = 0;
     }
-    
-    // Pack data for shader upload
-    for (let i = 0; i < MAX_BLOBS; i++) {
-        const b = blobs[i];
-        
-        // Stretch based on smoothed Y speed (always axis-aligned)
-        const stretch = Math.max(0.85, 
-            1.0 +
-            Math.min(b.smoothSpeedY * 0.028, 0.7) *
-            (0.4 + b.temperature * 0.6)
-        );
-        
-        blobData[i * 4 + 0] = b.pos.x;
-        blobData[i * 4 + 1] = b.pos.y;
-        blobData[i * 4 + 2] = b.radius;
-        blobData[i * 4 + 3] = stretch;
-        
-        tempData[i] = b.temperature;
-    }
-    
-    // Render WebGL
-    gl.useProgram(program);
-    gl.uniform2f(program.uResolution, currentW, currentH);
-    gl.uniform1f(program.uTime, now * 0.001);
-    gl.uniform4fv(program.uBlobs, blobData);
-    gl.uniform1fv(program.uBlobTemp, tempData);
-    
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    
-    // Reset mouse deltas
-    mouse.dx = 0;
-    mouse.dy = 0;
-    
-    animationId = requestAnimationFrame(render);
-}
 
-function handlePointer(e) {
-    const rect = canvasEl.getBoundingClientRect();
-    const touch = e.touches ? e.touches[0] : e;
-    
-    const newX = touch.clientX - rect.left;
-    const newY = touch.clientY - rect.top;
-    
-    // Only calculate dragging delta on drag events, skipping the cold-start click/touchstart coordinates
-    if (mouse.down && e.type !== 'mousedown' && e.type !== 'touchstart') {
-        const dx = newX - mouse.x;
-        const dy = newY - mouse.y;
-        
-        // Cap the maximum delta to prevent multi-touch jumps or glitch flings
-        if (Math.abs(dx) < 150 && Math.abs(dy) < 150) {
-            mouse.dx = dx;
-            mouse.dy = dy;
+    resize(w, h, dpr) {
+        this.currentW = w;
+        this.currentH = h;
+        if (this.gl) {
+            this.gl.viewport(0, 0, w * dpr, h * dpr);
         }
     }
-    
-    mouse.x = newX;
-    mouse.y = newY;
+
+    handlePointer = (e) => {
+        if (!this.canvasEl) return;
+        const rect = this.canvasEl.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        
+        const newX = touch.clientX - rect.left;
+        const newY = touch.clientY - rect.top;
+        
+        if (this.mouse.down && e.type !== 'mousedown' && e.type !== 'touchstart') {
+            const dx = newX - this.mouse.x;
+            const dy = newY - this.mouse.y;
+            
+            if (Math.abs(dx) < 150 && Math.abs(dy) < 150) {
+                this.mouse.dx = dx;
+                this.mouse.dy = dy;
+            }
+        }
+        
+        this.mouse.x = newX;
+        this.mouse.y = newY;
+    };
+
+    handleDown = (e) => {
+        this.mouse.dx = 0;
+        this.mouse.dy = 0;
+        this.mouse.down = true;
+        this.handlePointer(e);
+    };
+
+    handleUp = () => {
+        this.mouse.down = false;
+    };
+
+    bindEvents() {
+        window.addEventListener('mousedown', this.handleDown);
+        window.addEventListener('mousemove', this.handlePointer);
+        window.addEventListener('mouseup', this.handleUp);
+        
+        window.addEventListener('touchstart', this.handleDown, { passive: true });
+        window.addEventListener('touchmove', this.handlePointer, { passive: true });
+        window.addEventListener('touchend', this.handleUp);
+    }
+
+    unbindEvents() {
+        window.removeEventListener('mousedown', this.handleDown);
+        window.removeEventListener('mousemove', this.handlePointer);
+        window.removeEventListener('mouseup', this.handleUp);
+        
+        window.removeEventListener('touchstart', this.handleDown);
+        window.removeEventListener('touchmove', this.handlePointer);
+        window.removeEventListener('touchend', this.handleUp);
+    }
+
+    destroy() {
+        if (this.destroyed) return;
+        this.destroyed = true;
+
+        if (activeInstance === this) {
+            activeInstance = null;
+        }
+
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        this.unbindEvents();
+        
+        const gl = this.gl;
+        if (gl) {
+            try {
+                gl.clearColor(0,0,0,0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                if (this.program) gl.deleteProgram(this.program);
+                if (this.positionBuffer) gl.deleteBuffer(this.positionBuffer);
+            } catch (err) {
+                console.error('[AnkiFX/Lavalamp] Error deleting GPU state:', err);
+            }
+        }
+        this.gl = null;
+        this.program = null;
+        this.positionBuffer = null;
+    }
+
+    onContextLost() {
+        this.gl = null;
+        this.program = null;
+        this.positionBuffer = null;
+    }
+
+    onContextRestored(gl) {
+        this.gl = gl;
+        this.init(gl);
+    }
 }
 
-function handleDown(e) {
-    // Reset deltas first to avoid any leakage from previous states
-    mouse.dx = 0;
-    mouse.dy = 0;
-    mouse.down = true;
-    handlePointer(e);
-}
+let activeInstance = null;
 
-function handleUp() {
-    mouse.down = false;
-}
-
-function bindEvents() {
-    window.addEventListener('mousedown', handleDown);
-    window.addEventListener('mousemove', handlePointer);
-    window.addEventListener('mouseup', handleUp);
-    
-    window.addEventListener('touchstart', handleDown, { passive: true });
-    window.addEventListener('touchmove', handlePointer, { passive: true });
-    window.addEventListener('touchend', handleUp);
-}
-
-function unbindEvents() {
-    window.removeEventListener('mousedown', handleDown);
-    window.removeEventListener('mousemove', handlePointer);
-    window.removeEventListener('mouseup', handleUp);
-    
-    window.removeEventListener('touchstart', handleDown);
-    window.removeEventListener('touchmove', handlePointer);
-    window.removeEventListener('touchend', handleUp);
+export function runLavalamp(contexts, config) {
+    if (activeInstance) {
+        activeInstance.destroy();
+    }
+    activeInstance = new LavalampInstance(contexts, config);
+    activeInstance.init(contexts.gl);
 }
 
 export function stopLavalamp() {
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-    unbindEvents();
-    
-    if (gl) {
-        gl.clearColor(0,0,0,0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        // Optional: cleanup shaders/buffers
-        if (program) gl.deleteProgram(program);
-        if (positionBuffer) gl.deleteBuffer(positionBuffer);
-        program = null;
-        positionBuffer = null;
+    if (activeInstance) {
+        activeInstance.destroy();
+        activeInstance = null;
     }
 }
+
+export const effect = {
+    id: 'lavalamp',
+    name: 'Lava Lamp',
+    isWebGL: true,
+    createInstance(contexts, config) {
+        activeInstance = new LavalampInstance(contexts, config);
+        return activeInstance;
+    },
+    run: runLavalamp,
+    stop: stopLavalamp,
+    onResize: (w, h, dpr) => {
+        if (activeInstance) {
+            activeInstance.resize(w, h, dpr);
+        }
+    },
+    marqueeFont: {
+        color: '#ffccaa',
+        shadowColor: 'rgba(255, 100, 0, 0.8)',
+        shadowBlur: 10
+    }
+};

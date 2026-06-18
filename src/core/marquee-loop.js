@@ -27,7 +27,7 @@ export function startMarqueeLoop(state) {
                 try {
                     EFFECTS[state.currentEffectId].drawOverlay(state.ctxMarquee, state.width, state.height, timestamp);
                 } catch (e) {
-                    console.error('[AnkiFX] drawOverlay error:', e);
+                    console.error('[AnkiFX] drawOverlay error: ' + e.message);
                 }
             }
 

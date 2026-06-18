@@ -1,0 +1,7 @@
+{
+    "files.exclude": {
+        "**/.git": false,
+        "**/.git/{objects,refs,info,logs,hooks/*.sample,index,config,description,HEAD,COMMIT_EDITMSG,FETCH_HEAD,ORIG_HEAD,packed-refs}": true,
+        "**/.github": false
+    }
+}

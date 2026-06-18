@@ -3,7 +3,7 @@
  * NOTE: CommonJS for Node build.js compatibility — source modules use ESM.
  */
 function validateConfig(config, filename) {
-    const required = ['deckTitle', 'termsText', 'marquee', 'defaultEffect'];
+    const required = ['deckTitle', 'marquee', 'defaultEffect'];
     for (const field of required) {
         if (config[field] === undefined) {
             throw new Error(`Config validation error in ${filename}: Missing required field "${field}"`);

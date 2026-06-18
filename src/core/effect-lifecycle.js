@@ -17,6 +17,27 @@ export function startEffect(state, config, container, position, activeEffect) {
     });
     html.classList.add(`afx-effect-${activeEffect}`);
 
+    // Clean up previous active effect instance first!
+    if (state.effectInstance) {
+        if (typeof state.effectInstance.destroy === 'function') {
+            try {
+                state.effectInstance.destroy();
+            } catch (err) {
+                console.error('[AnkiFX] Error destroying previous active effect instance:', err);
+            }
+        }
+        state.effectInstance = null;
+    }
+
+    // Call stop() on any old effect for Canvas 2D backward compatibility
+    Object.values(EFFECTS).forEach(eff => {
+        if (eff.id !== activeEffect && typeof eff.stop === 'function') {
+            try {
+                eff.stop();
+            } catch (err) {}
+        }
+    });
+
     state.currentEffectId = activeEffect;
 
     const effect = EFFECTS[activeEffect];
@@ -45,7 +66,55 @@ export function startEffect(state, config, container, position, activeEffect) {
             state.marquee.updateStyles(effect.marqueeFont || {});
         }
 
-        effect.run(sharedContexts, config);
+        // Validate lifecycle contract if it's WebGL
+        if (effect.isWebGL) {
+            try {
+                if (typeof effect.createInstance === 'function') {
+                    state.effectInstance = effect.createInstance(sharedContexts, config);
+                } else {
+                    state.effectInstance = effect;
+                }
+            } catch (err) {
+                console.error(`[AnkiFX] Error instantiating WebGL effect ${activeEffect}:`, err);
+                startEffect(state, config, container, position, 'none');
+                return;
+            }
+
+            const required = ['init', 'render', 'destroy', 'onContextLost', 'onContextRestored'];
+            let isValid = true;
+            for (const method of required) {
+                if (!state.effectInstance || typeof state.effectInstance[method] !== 'function') {
+                    console.error(`[AnkiFX] WebGL Effect contract validation failed for ${effect.id}: missing or invalid ${method}`);
+                    isValid = false;
+                    break;
+                }
+            }
+
+            if (!isValid) {
+                if (state.effectInstance && typeof state.effectInstance.destroy === 'function') {
+                    try { state.effectInstance.destroy(); } catch (e) {}
+                }
+                state.effectInstance = null;
+                // Fallback to none effect to prevent silent crash
+                startEffect(state, config, container, position, 'none');
+                return;
+            }
+
+            try {
+                state.effectInstance.init(state.glContext);
+            } catch (err) {
+                console.error(`[AnkiFX] Error initializing WebGL effect ${activeEffect}:`, err);
+                if (state.effectInstance && typeof state.effectInstance.destroy === 'function') {
+                    try { state.effectInstance.destroy(); } catch (e) {}
+                }
+                state.effectInstance = null;
+                startEffect(state, config, container, position, 'none');
+                return;
+            }
+        } else {
+            // Standard Canvas 2D effect
+            effect.run(sharedContexts, config);
+        }
 
         // Render dynamic controls for the active effect
         renderEffectControls(effect);
@@ -64,3 +133,4 @@ export function startEffect(state, config, container, position, activeEffect) {
         renderEffectControls(null);
     }
 }
+

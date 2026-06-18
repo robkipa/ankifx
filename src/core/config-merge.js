@@ -4,7 +4,7 @@ import { getAnkiMobileOffsets, getCanvasDprCap } from './platform.js';
 const DEFAULT_CONFIG = {
     deckTitle: "AnkiFX Deck",
     deckAuthor: "Anonymous",
-    termsText: "No terms provided.",
+    termsText: null,
     sources: [],
     marquee: "ANKIFX ENGINE INITIALIZED ...",
     defaultEffect: "geometry",
@@ -24,9 +24,11 @@ export function mergeAndHardenConfig(templateOptions = {}) {
     const parsedCountdown = parseInt(config.countdown, 10);
     config.countdown = isNaN(parsedCountdown) ? 30 : Math.max(0, parsedCountdown);
 
-    config.isConfigFileError = typeof config.termsText !== 'string'
-        || config.termsText.trim() === ""
-        || config.termsText === "No terms provided.";
+    config.isConfigFileError = config.termsText !== undefined && config.termsText !== null && (
+        typeof config.termsText !== 'string'
+        || (typeof config.termsText === 'string' && config.termsText.trim() === "")
+        || config.termsText === "No terms provided."
+    );
 
     return config;
 }

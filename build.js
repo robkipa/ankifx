@@ -49,6 +49,13 @@ function copyLocal() {
     } else {
         console.warn(`⚠️  Could not find build/_afx_defaults.json to copy.`);
     }
+
+    const srcVersion = path.join(buildDir, '_afx_version.json');
+    const destVersion = path.join(targetDir, '_afx_version.json');
+    if (fs.existsSync(srcVersion)) {
+        fs.copyFileSync(srcVersion, destVersion);
+        console.log(`🚀 Copied build/_afx_version.json to local media directory.`);
+    }
 }
 
 if (isLocalOnly) {
@@ -114,9 +121,19 @@ const compileConfigsPlugin = {
             // Ensure build/ folder exists
             if (!fs.existsSync(buildDir)) fs.mkdirSync(buildDir, { recursive: true });
 
-            // Ensure build/configs/ folder exists (untracked)
+            // Ensure build/configs/ folder exists and is clear (untracked)
             const buildConfigsDir = path.join(buildDir, 'configs');
-            if (!fs.existsSync(buildConfigsDir)) fs.mkdirSync(buildConfigsDir, { recursive: true });
+            if (fs.existsSync(buildConfigsDir)) {
+                // Clear any existing config files to prevent orphaned config leaks
+                const existingConfigs = fs.readdirSync(buildConfigsDir);
+                for (const file of existingConfigs) {
+                    try {
+                        fs.unlinkSync(path.join(buildConfigsDir, file));
+                    } catch (e) {}
+                }
+            } else {
+                fs.mkdirSync(buildConfigsDir, { recursive: true });
+            }
 
             try {
                 const configsDir = path.join(__dirname, 'configs');
@@ -139,9 +156,16 @@ const compileConfigsPlugin = {
                 );
                 console.log('✅ Compiled build/_afx_defaults.json successfully.');
 
+                // Copy version manifest directly
+                const versionPath = path.join(configsDir, '_afx_version.json');
+                if (fs.existsSync(versionPath)) {
+                    fs.copyFileSync(versionPath, path.join(buildDir, '_afx_version.json'));
+                    console.log('✅ Copied configs/_afx_version.json to build/_afx_version.json successfully.');
+                }
+
                 // 2. Auto-discover and compile deck-specific overrides
                 const otherConfigs = fs.readdirSync(configsDir)
-                    .filter(f => f.startsWith('_afx_') && f.endsWith('.json') && f !== '_afx_defaults.json');
+                    .filter(f => f.startsWith('_afx_') && f.endsWith('.json') && f !== '_afx_defaults.json' && f !== '_afx_version.json');
 
                 for (const file of otherConfigs) {
                     const filePath = path.join(configsDir, file);
@@ -186,8 +210,24 @@ const compileConfigsPlugin = {
 // 3. Run the build
 async function runBuild() {
     let gitCommit = 'unknown';
+    let isRelease = false;
     try {
         const { execSync } = require('child_process');
+        let exactTag = '';
+        try {
+            exactTag = execSync('git describe --tags --exact-match 2>/dev/null').toString().trim();
+        } catch (e) {}
+
+        if (
+            exactTag === `v${pkg.version}` ||
+            exactTag === pkg.version ||
+            process.env.RELEASE === 'true' ||
+            process.env.GITHUB_REF_NAME === `v${pkg.version}` ||
+            process.env.GITHUB_REF_NAME === pkg.version
+        ) {
+            isRelease = true;
+        }
+
         const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
         const isDirty = execSync('git status --porcelain').toString().trim() !== '';
         gitCommit = isDirty ? `${commitHash}+` : commitHash;
@@ -195,7 +235,7 @@ async function runBuild() {
         // Fallback gracefully if Git is not available
     }
 
-    const versionString = `${pkg.version}-${gitCommit}`;
+    const versionString = isRelease ? pkg.version : `${pkg.version}-${gitCommit}`;
 
     const ctx = await esbuild.context({
         entryPoints: ['src/index.js'],

@@ -1,0 +1,259 @@
+<!-- AnkiFX Template Metadata -->
+<div id="ankifx-template-meta" style="display: none !important;" data-template-name="back_mcq"
+    data-template-version="1.0.0" data-engine-compatibility=">=1.0.0"></div>
+
+{{FrontSide}}
+
+<div id="afxMcqBack" class="afx-mcq-back">
+    <div class="afx-mcq-answerline" id="afx-mcq-correct-letters-line">Correct answer: <span
+            class="afx-mcq-correct-letters" id="afx-mcq-correct-letters-output"></span></div>
+    {{#Sources}}
+    <div class="afx-mcq-explain afx-mcq-explain-sources">
+        <div class="afx-mcq-explain-h">Sources</div>
+        <div class="afx-mcq-explain-b">{{Sources}}</div>
+    </div>
+    {{/Sources}}
+    {{#Extra 1}}
+    <div class="afx-mcq-explain afx-mcq-explain-extra">
+        <div class="afx-mcq-explain-h">Extra Info</div>
+        <div class="afx-mcq-explain-b">{{Extra 1}}</div>
+    </div>
+    {{/Extra 1}}
+</div>
+
+<div class="hidden" id="Q_solutions">{{Answers}}</div>
+<div class="hidden" id="Card_Type">{{QType (0=kprim,1=mc,2=sc)}}</div>
+
+<!-- Native sessionStorage used for options and state persistence -->
+
+<script>
+    "use strict";
+
+    // Grading color modes for MC/SC questions:
+    // 'all' (default): Colors all rows (correctly ticked/unticked green, incorrectly ticked/unticked red).
+    // 'diff': Only colors falsely ticked rows red, and rows that should have been ticked green.
+    var GRADING_COLOR_MODE = 'diff';
+
+    function onLoad() {
+        var box = document.getElementById('afxMcqOptions'); if (!box) return;
+        var cardTypeEl = document.getElementById('Card_Type');
+        var cardTypeVal = cardTypeEl ? cardTypeEl.textContent.trim() : '1';
+
+        var qtype = 'multi';
+        if (cardTypeVal === '2') {
+            qtype = 'single';
+        } else if (cardTypeVal === '0') {
+            qtype = 'kprim';
+        }
+
+        var opts = [...box.querySelectorAll('.afx-mcq-opt')];
+
+        // 1. Retrieve shuffled order and selection from sessionStorage
+        var shuffledOrder = null;
+        var selected = qtype === 'kprim' ? {} : [];
+        try {
+            var orderData = sessionStorage.getItem("ankifx_mcq_shuffled_order");
+            if (orderData) {
+                shuffledOrder = JSON.parse(orderData);
+            }
+            var selData = sessionStorage.getItem("ankifx_mcq_selected");
+            if (selData) {
+                selected = JSON.parse(selData);
+            }
+        } catch (e) {
+            console.error("sessionStorage read error", e);
+        }
+
+        // Clean up of sessionStorage is handled automatically by the front template on new card loads
+
+        // 2. Re-arrange options to match the shuffled order
+        if (shuffledOrder && shuffledOrder.length > 0) {
+            opts.sort(function (a, b) {
+                var letterA = a.getAttribute('data-letter');
+                var letterB = b.getAttribute('data-letter');
+                return shuffledOrder.indexOf(letterA) - shuffledOrder.indexOf(letterB);
+            });
+            opts.forEach(function (opt) { box.appendChild(opt); });
+        }
+
+        // 3. Grade options
+        box.classList.add('graded');
+        var solutionsText = document.getElementById('Q_solutions') ? document.getElementById('Q_solutions').textContent.trim() : "";
+        var solutions = solutionsText.split(" ").map(Number);
+
+        var shuffleEnabled = sessionStorage.getItem("ankifx_mcq_shuffle_enabled") === "true";
+        if (shuffleEnabled) {
+            box.classList.add('afx-mcq-shuffle-enabled');
+        } else {
+            box.classList.remove('afx-mcq-shuffle-enabled');
+        }
+
+        // Dynamically compute correct letters output
+        if (qtype !== 'kprim' && !shuffleEnabled) {
+            var correctLetters = [];
+            solutions.forEach(function (val, idx) {
+                if (val === 1) {
+                    correctLetters.push(String.fromCharCode(65 + idx)); // A, B, C...
+                }
+            });
+            var correctLine = document.getElementById("afx-mcq-correct-letters-line");
+            if (correctLine) {
+                if (correctLetters.length > 0) {
+                    document.getElementById("afx-mcq-correct-letters-output").textContent = correctLetters.join(", ");
+                    correctLine.style.display = '';
+                } else {
+                    correctLine.style.display = 'none';
+                }
+            }
+        } else {
+            var correctLine = document.getElementById("afx-mcq-correct-letters-line");
+            if (correctLine) correctLine.style.display = 'none';
+        }
+
+        if (qtype === 'kprim') {
+            opts.forEach(function (o) {
+                var existing = o.querySelector('.afx-mcq-kprim-buttons');
+                if (existing) existing.remove();
+
+                var L = o.getAttribute('data-letter');
+                var index = L.charCodeAt(0) - 65; // A=0, B=1, C=2, etc.
+                var correctVal = solutions[index];
+                var selectedVal = (selected && selected[L] !== undefined) ? selected[L] : 2;
+                var isCorrect = (selectedVal === correctVal);
+                var b = o.querySelector('.afx-mcq-badge');
+
+                o.classList.remove('selected', 'correct', 'wrong');
+
+                var kprimDiv = document.createElement('div');
+                kprimDiv.className = 'afx-mcq-kprim-buttons graded';
+                kprimDiv.innerHTML = `
+                    <button class="afx-mcq-kprim-btn kprim-yes" disabled>True</button>
+                    <button class="afx-mcq-kprim-btn kprim-no" disabled>False</button>
+                `;
+                o.appendChild(kprimDiv);
+
+                var yesBtn = kprimDiv.querySelector('.kprim-yes');
+                var noBtn = kprimDiv.querySelector('.kprim-no');
+
+                if (selectedVal === 1) {
+                    yesBtn.classList.add('selected');
+                    o.classList.add('selected-yes');
+                } else if (selectedVal === 0) {
+                    noBtn.classList.add('selected');
+                    o.classList.add('selected-no');
+                }
+
+                if (isCorrect) {
+                    o.classList.add('correct');
+                    if (b) b.textContent = (selectedVal !== 2) ? 'YOUR ANSWER \u2713' : 'CORRECT \u2713';
+                } else {
+                    o.classList.add('wrong');
+                    if (b) b.textContent = (selectedVal !== 2) ? 'YOUR ANSWER \u2717' : 'MISSING \u2717';
+                    if (correctVal === 1) {
+                        yesBtn.classList.add('correct-choice');
+                    } else if (correctVal === 0) {
+                        noBtn.classList.add('correct-choice');
+                    }
+                }
+            });
+        } else if (qtype === 'multi') {
+            opts.forEach(function (o) {
+                var L = o.getAttribute('data-letter');
+                var index = L.charCodeAt(0) - 65; // A=0, B=1, etc.
+                var isCorrect = (solutions[index] === 1);
+                var isSelected = (selected && Array.isArray(selected)) ? selected.indexOf(L) >= 0 : false;
+                var b = o.querySelector('.afx-mcq-badge');
+
+                o.classList.remove('selected', 'correct', 'wrong');
+                if (isCorrect) {
+                    if (isSelected) {
+                        o.classList.add('correct');
+                        if (b) b.textContent = 'YOUR ANSWER \u2713';
+                    } else {
+                        if (GRADING_COLOR_MODE === 'diff') {
+                            o.classList.add('correct');
+                            if (b) b.textContent = 'CORRECT \u2713';
+                        } else {
+                            o.classList.add('wrong');
+                            if (b) b.textContent = 'MISSING \u2717';
+                        }
+                    }
+                } else {
+                    if (isSelected) {
+                        o.classList.add('wrong');
+                        if (b) b.textContent = 'YOUR ANSWER \u2717';
+                    } else {
+                        if (GRADING_COLOR_MODE === 'all') {
+                            o.classList.add('correct');
+                            if (b) b.textContent = 'CORRECTLY UNSELECTED \u2713';
+                        } else {
+                            if (b) b.textContent = '';
+                        }
+                    }
+                }
+            });
+        } else {
+            // Single Choice (SC)
+            opts.forEach(function (o) {
+                var L = o.getAttribute('data-letter');
+                var index = L.charCodeAt(0) - 65; // A=0, B=1, etc.
+                var isCorrect = (solutions[index] === 1);
+                var isSelected = (selected && Array.isArray(selected)) ? selected.indexOf(L) >= 0 : false;
+                var b = o.querySelector('.afx-mcq-badge');
+
+                o.classList.remove('selected', 'correct', 'wrong');
+                if (isCorrect) {
+                    if (isSelected) {
+                        o.classList.add('correct');
+                        if (b) b.textContent = 'YOUR ANSWER \u2713';
+                    } else {
+                        if (GRADING_COLOR_MODE === 'diff') {
+                            o.classList.add('correct');
+                            if (b) b.textContent = 'CORRECT \u2713';
+                        } else {
+                            o.classList.add('wrong');
+                            if (b) b.textContent = 'MISSING \u2717';
+                        }
+                    }
+                } else {
+                    if (isSelected) {
+                        o.classList.add('wrong');
+                        if (b) b.textContent = 'YOUR ANSWER \u2717';
+                    } else {
+                        if (GRADING_COLOR_MODE === 'all') {
+                            o.classList.add('correct');
+                            if (b) b.textContent = 'CORRECTLY UNSELECTED \u2713';
+                        } else {
+                            if (b) b.textContent = '';
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function run() {
+        setTimeout(onLoad, 1);
+    }
+
+    async function waitForReadyStateAndRun() {
+        for (var i = 0; i < 100; i++) {
+            if (document.readyState === "complete") {
+                run();
+                break;
+            }
+            // Sleep 100ms
+            await new Promise(function (resolve) { setTimeout(resolve, 100); });
+        }
+    }
+
+    if (document.readyState === "complete") {
+        run();
+    } else {
+        waitForReadyStateAndRun();
+    }
+</script>
+<div id="afx-config-field" style="display: none !important;">{{AnkiFXConfig}}</div>
+<div class="ankifx-card" style="display:none;"></div>
+<img src="_ankifx.js" style="display:none !important;">
+<img src="_afx_defaults.json" style="display:none !important;">

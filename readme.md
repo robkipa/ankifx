@@ -21,20 +21,21 @@ Now, the project is open to the public so anyone can inject stunning, high-perfo
         *   **Chronological Loader Logs**: Lists template loading events and error logs.
         *   **LocalStorage Viewer**: Displays sorted key-value pairs of localStorage in real-time, showing direct evidence of preferences and terms agreement.
         *   **Console Logs (Full-Width)**: A custom scrollable panel capturing console outputs (`log`, `warn`, `error`, etc.), unhandled exceptions, and unhandled promise rejections, complete with level filtering and a global-scope JavaScript execution command line.
-*   **Canvas Visualizers**: Thirteen high-performance background effects:
+*   **Canvas Visualizers**: Fourteen high-performance background effects:
     *   *Aurora*: Organic, noise-based northern lights simulation (optimized for mobile).
-    *   *ECG*: Blood-red cardiac monitor visualizer effect with PQRST waveforms, phosphor fade trail, alternating arrhythmias (including AV blocks, STEMI, AFib, Flutter, and Torsades), and an interactive trigger toggle button.
+    *   *Debug*: Diagnostic effect for viewport calibration.
+    *   *ECG*: ECG visualizer with PQRST waveforms and alternating arrhythmias (including AV blocks, STEMI, AFib, Flutter, and Torsades).
     *   *Fire*: Classic demoscene doom-fire simulation.
     *   *Geometry*: 3D demoscene geometry + scrolling marquee.
+    *   *Gradient*: Stripe-like WebGL noise gradient.
     *   *Julia Set*: Animated fractal with a built-in **Preset Picker**.
+    *   *Lava Lamp*: Highly responsive and satisfying WebGL fluid simulation.
     *   *Mandelbrot*: Zooming progressive fractal with tuning parameters.
     *   *Matrix*: Cyberpunk digital rain.
     *   *None*: A nightmode-aware, battery-efficient fallback.
-    *   *Gradient*: Stripe-like WebGL noise gradient with interactive dynamic luminance contrast-adjusting card text and randomized color control.
-    *   *Lava Lamp*: Highly responsive and satisfying WebGL fluid simulation.
+    *   *Quantum*: 360 instanced entities evolve through a dynamic mathematical field.
     *   *Starfield*: Multi-layer parallax star field.
     *   *Tetris*: Fully functional background Tetris simulation.
-    *   *Debug*: Diagnostic effect for viewport calibration.
 *   **Keygen Jukebox**: Pure JavaScript tracker music player powered by [`funkymed-flod-module-player`](https://www.npmjs.com/package/funkymed-flod-module-player).
     *   **Effect-Music Association**: Effects can specify a `preferredTrack` to automatically switch to a thematically appropriate track.
     *   **Playback History**: 50-track stack with navigation (`⏮️` / `⏭️`) and async race protection.
@@ -98,7 +99,7 @@ To edit visual effects, customize layouts, or compile the codebase locally:
     npm run watch
     ```
 3.  **Live Preview**:
-    Open `build/card_front_example.html` or `build/card_back_example.html` in your browser (e.g., using VS Code's Live Server, or `npx serve build`) to preview changes in real-time.
+    Open `build/card templates/ankifx_basic_front.html` or `build/card templates/ankifx_basic_back.html` in your browser (e.g., using VS Code's Live Server, or `npx serve build`) to preview changes in real-time.
 4.  **Local Anki Auto-Copy (Optional)**:
     To automatically copy compiled build files directly to your Anki `collection.media` folder on every build or save:
     * Create a private, git-ignored `ankifx.local.json` in the root:
@@ -214,7 +215,19 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
 <div id="afx-config-field" style="display: none !important;">{{AnkiFXConfig}}</div>
 
 <script>
-    (function() {
+    window.AnkiFX_BOOTSTRAP = window.AnkiFX_BOOTSTRAP || {
+        cdn: "https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_ankifx.js",
+        manifest: "https://cdn.jsdelivr.net/gh/robkipa/ankifx@v1/build/_afx_version.json"
+    };
+
+    window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
+    window.afxLog = function (msg, level) {
+        var prefixed = msg.indexOf("[Card Template]") === 0 ? msg : "[Card Template] " + msg;
+        window.AnkiFX_Loader_Logs.push({ msg: prefixed, level: level || 'info' });
+    };
+    var afxLog = window.afxLog;
+
+    (function () {
         var fieldContainer = document.getElementById("afx-config-field");
         var configText = fieldContainer ? fieldContainer.textContent.trim() : "";
         var parsed = false;
@@ -224,34 +237,40 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
                 try {
                     config.termsText = decodeURIComponent(escape(atob(config.termsText)));
                 } catch (e) {
-                    console.error("AnkiFX: Failed to decode termsText base64 string.", e);
+                    console.error("[Card Template] Failed to decode termsText base64 string.", e);
                 }
             }
             return config;
         }
 
         if (configText) {
+            // Replace non-breaking spaces (\u00a0) with standard spaces to prevent JSON.parse syntax errors from Anki copy-paste
+            configText = configText.replace(/\u00a0/g, ' ');
+            // Resiliently strip trailing commas from JSON objects/arrays to prevent standard JSON.parse parsing failures
+            configText = configText.replace(/,(\s*[\]}])/g, '$1').trim();
             try {
                 window.AnkiFX_Config = decodeConfig(JSON.parse(configText));
                 parsed = true;
             } catch (e) {
-                console.error("AnkiFX: Failed to parse embedded AnkiFXConfig JSON. Falling back to _afx_defaults.json. Error:", e);
+                console.error("[Card Template] Failed to parse embedded AnkiFXConfig JSON. Falling back to _afx_defaults.json. Error:", e);
             }
         }
 
         if (!parsed) {
             var xhr = new XMLHttpRequest();
             xhr.open("GET", "_afx_defaults.json", true);
-            xhr.onreadystatechange = function() {
+            xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4) {
                     if (xhr.status === 200 || xhr.status === 0) {
                         try {
                             window.AnkiFX_Config = decodeConfig(JSON.parse(xhr.responseText));
                         } catch (err) {
-                            console.error("AnkiFX: Failed to parse fallback _afx_defaults.json.", err);
+                            console.error("[Card Template] Failed to parse fallback _afx_defaults.json.", err);
+                            window.AnkiFX_Config = null;
                         }
                     } else {
-                        console.error("AnkiFX: Failed to load fallback _afx_defaults.json. Status: " + xhr.status);
+                        console.error("[Card Template] Failed to load fallback _afx_defaults.json. Status: " + xhr.status);
+                        window.AnkiFX_Config = null;
                     }
                 }
             };
@@ -261,38 +280,59 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
 </script>
 
 <!-- Load the local offline engine backup first (static load is 100% mobile-resilient and CORS-safe) -->
-<script src="_ankifx.js" onerror="console.warn('AnkiFX: Local engine backup not found in collection.media.')"></script>
+<script src="_ankifx.js" onerror="console.warn('[Card Template] Local engine backup not found in collection.media.')"></script>
 
 <!-- Load the latest remote engine CDN (parsed sequentially, overrides local global if online) -->
-<script id="ankifx-engine-script" src="https://cdn.jsdelivr.net/gh/robkipa/ankifx@latest/build/_ankifx.js" onerror="console.warn('AnkiFX: CDN failed to load, using local engine.')"></script>
-
 <script>
     (function() {
-        window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
-        var remoteScript = document.getElementById('ankifx-engine-script');
-        if (remoteScript) {
-            if (window.AnkiFX && window.AnkiFX.source === 'remote') {
-                window.AnkiFX_Remote_Status = "loaded";
-                window.AnkiFX_Loader_Logs.push("Remote engine script loaded (sync).");
-            } else {
-                window.AnkiFX_Remote_Status = "pending";
-                window.AnkiFX_Loader_Logs.push("Remote engine script pending...");
-                remoteScript.addEventListener('load', function() {
-                    window.AnkiFX_Remote_Status = "loaded";
-                    window.AnkiFX_Loader_Logs.push("Remote engine script onload fired (async).");
-                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
-                });
-                remoteScript.addEventListener('error', function() {
-                    window.AnkiFX_Remote_Status = "failed";
-                    window.AnkiFX_Loader_Logs.push("Remote engine script onerror fired (async).");
-                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
-                });
-            }
+        var isRemoteActive = window.AnkiFX && window.AnkiFX.source === 'remote';
+        if (!isRemoteActive && !document.getElementById('ankifx-engine-script')) {
+            var script = document.createElement('script');
+            script.id = 'ankifx-engine-script';
+            script.src = window.AnkiFX_BOOTSTRAP.cdn;
+            script.onerror = function() { console.warn('[Card Template] CDN failed to load, using local engine.'); };
+            document.head.appendChild(script);
         }
     })();
 </script>
 
 <script>
+    (function () {
+        var remoteScript = document.getElementById('ankifx-engine-script');
+        if (remoteScript) {
+            if (window.AnkiFX && window.AnkiFX.source === 'remote') {
+                window.AnkiFX_Remote_Status = "loaded";
+                afxLog("Remote CDN engine script loaded synchronously.", "success");
+            } else if (window.AnkiFX_Remote_Status === "loaded" || window.AnkiFX_Remote_Status === "failed") {
+                if (window.AnkiFX_Remote_Status === "loaded") {
+                    afxLog("Remote CDN engine script already successfully loaded.", "success");
+                } else {
+                    afxLog("Remote CDN engine script fetch already failed (skipping re-fetch, using local fallback).", "info");
+                }
+            } else {
+                window.AnkiFX_Remote_Status = "pending";
+                afxLog("Remote CDN engine script download pending...", "pending");
+                remoteScript.addEventListener('load', function () {
+                    window.AnkiFX_Remote_Status = "loaded";
+                    afxLog("Remote CDN engine script loaded asynchronously.", "success");
+                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
+                });
+                remoteScript.addEventListener('error', function () {
+                    window.AnkiFX_Remote_Status = "failed";
+                    afxLog("Remote CDN engine script failed to load (falling back to local engine).", "warn");
+                    if (typeof triggerAnkiFX === 'function') triggerAnkiFX();
+                });
+            }
+        } else if (window.AnkiFX && window.AnkiFX.source === 'remote') {
+            window.AnkiFX_Remote_Status = "loaded";
+            afxLog("Remote CDN engine script already active in window context.", "success");
+        }
+    })();
+</script>
+
+<script>
+    afxLog("Template loaded.", "info");
+
     // Closure-scoped flags to prevent duplicate execution within the same card's lifecycle
     var contentInitialized = false;
     var ankiFXInitialized = false;
@@ -300,12 +340,11 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
     /**
      * Resilient Polling AnkiFX Loader
      * Periodically polls for ready dependencies to bypass asynchronous WKWebView execution lags.
-     * Prefers the remote CDN engine over the local engine, checking status up to 800ms.
      */
     function triggerAnkiFX(attempts = 0) {
         window.AnkiFX_Loader_Logs = window.AnkiFX_Loader_Logs || [];
         if (attempts === 0) {
-            window.AnkiFX_Loader_Logs.push("triggerAnkiFX called.");
+            afxLog("AnkiFX loader triggered.", "info");
         }
 
         const remoteScriptExists = !!document.getElementById('ankifx-engine-script');
@@ -320,21 +359,20 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
             const isWaitingForRemote = (remoteStatus === "pending") && (attempts < 16);
             if (isWaitingForRemote) {
                 if (attempts % 5 === 0) {
-                    window.AnkiFX_Loader_Logs.push("Waiting for remote script (Attempt " + attempts + ", status=" + remoteStatus + ")...");
+                    afxLog("Waiting for remote CDN script (Attempt " + attempts + ", status=" + remoteStatus + ")...", "pending");
                 }
                 setTimeout(() => triggerAnkiFX(attempts + 1), 50);
                 return;
             }
-            
             // 1. First initialize AnkiFX if it is loaded
             if (!ankiFXInitialized) {
                 try {
-                    window.AnkiFX_Loader_Logs.push("Initializing AnkiFX engine (Source: " + (AnkiFX.source || 'local') + ", Version: " + (AnkiFX.version || '1.0.0') + ")...");
+                    afxLog("Initializing AnkiFX engine (Source: " + (AnkiFX.source || 'local') + ", Version: " + (AnkiFX.version || '1.0.0') + ")...", "info");
                     ankiFXInitialized = true;
                     AnkiFX.init();
-                    window.AnkiFX_Loader_Logs.push("AnkiFX.init() success.");
+                    afxLog("AnkiFX engine initialized successfully.", "success");
                 } catch (e) {
-                    window.AnkiFX_Loader_Logs.push("AnkiFX init error: " + e.message);
+                    afxLog("AnkiFX engine initialization failed: " + e.message, "error");
                     console.error("AnkiFX Start Error:", e);
                 }
             }
@@ -342,24 +380,34 @@ The engine's secure assignment logic protects the global `window.AnkiFX` referen
             // 2. Then run the card's native content/table generator
             if (!contentInitialized) {
                 try {
-                    window.AnkiFX_Loader_Logs.push("Running card content run()...");
+                    afxLog("Executing card rendering logic...", "info");
                     contentInitialized = true;
                     run();
-                    window.AnkiFX_Loader_Logs.push("Card content run() success.");
+                    afxLog("Card rendered successfully.", "success");
                 } catch (e) {
-                    window.AnkiFX_Loader_Logs.push("Card content error: " + e.message);
+                    afxLog("Card rendering logic failed: " + e.message, "error");
                     console.error("Card Content Run Error:", e);
                 }
             }
         } else if (attempts < 60) { // Poll for ~3 seconds
             if (attempts % 10 === 0) {
-                window.AnkiFX_Loader_Logs.push("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ", Config=" + hasConfig + ")...");
+                afxLog("Polling (Attempt " + attempts + ": AnkiFX=" + hasAnkiFX + ", run=" + hasRun + ", Config=" + hasConfig + ")...", "pending");
             }
             setTimeout(() => triggerAnkiFX(attempts + 1), 50);
         } else {
             const err = "Loader timed out after 3.0s. AnkiFX: " + (hasAnkiFX ? "Loaded" : "FAILED") + ", run(): " + (hasRun ? "Defined" : "UNDEFINED") + ", Config: " + (hasConfig ? "Loaded" : "FAILED");
-            window.AnkiFX_Loader_Logs.push(err);
+            afxLog(err, "error");
             console.error(err);
+            // Graceful fallback: always execute card content even if loader fails/timeouts
+            if (hasRun && !contentInitialized) {
+                try {
+                    afxLog("Loader timeout fallback: Executing card rendering logic...", "warn");
+                    contentInitialized = true;
+                    run();
+                } catch (runErr) {
+                    console.error("AnkiFX Fallback Card Content Run Error:", runErr);
+                }
+            }
         }
     }
 

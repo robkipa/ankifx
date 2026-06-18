@@ -41,8 +41,8 @@ export class Jukebox {
     }
 
     async playNext(target = null) {
-        const opId = ++this._opId;
         this.stop();
+        const opId = ++this._opId;
 
         try {
             if (!this.hasFetchedIndex) {
@@ -118,8 +118,8 @@ export class Jukebox {
 
     async playPrevious() {
         if (this.historyCursor > 0) {
-            const opId = ++this._opId;
             this.stop();
+            const opId = ++this._opId;
             this.historyCursor--;
             const track = this.trackList[this.history[this.historyCursor]];
             try {
@@ -198,6 +198,7 @@ export class Jukebox {
     }
 
     stop() {
+        this._opId++; // Invalidate all pending async track loads
         this.stopPolling();
         this.isPlaying = false;
         

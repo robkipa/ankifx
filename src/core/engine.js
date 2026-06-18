@@ -38,7 +38,50 @@ const state = {
     _resizeInterval: null,
     observer: null,
     dockObserver: null,
+    initialized: false,
+    effectInstance: null,
+    isContextLost: false,
 };
+
+function handleContextLost(e) {
+    e.preventDefault();
+    console.warn('[AnkiFX] WebGL Context Lost detected!');
+    state.isContextLost = true;
+    
+    const activeId = state.currentEffectId;
+    if (activeId && EFFECTS[activeId]) {
+        const effect = EFFECTS[activeId];
+        if (effect.isWebGL && state.effectInstance && typeof state.effectInstance.onContextLost === 'function') {
+            try {
+                state.effectInstance.onContextLost();
+            } catch (err) {
+                console.error('[AnkiFX] Error in active effect onContextLost:', err);
+            }
+        }
+    }
+}
+
+function handleContextRestored() {
+    console.log('[AnkiFX] WebGL Context Restored. Re-initializing pipeline...');
+    state.isContextLost = false;
+    
+    if (state.sharedGL) {
+        state.glContext = state.sharedGL.getContext('webgl', { alpha: false, antialias: false });
+    }
+    
+    const activeId = state.currentEffectId;
+    if (activeId && EFFECTS[activeId]) {
+        const effect = EFFECTS[activeId];
+        if (effect.isWebGL && state.effectInstance && typeof state.effectInstance.onContextRestored === 'function') {
+            try {
+                state.effectInstance.onContextRestored(state.glContext);
+            } catch (err) {
+                console.error('[AnkiFX] Error in active effect onContextRestored:', err);
+            }
+        }
+    }
+}
+
 
 // --- Core lifecycle ---
 
@@ -49,12 +92,22 @@ function init(templateOptions = {}) {
 
     if (document.getElementById('ankifx-overlay')) {
         if (tryRestoreAgreedSession(state, config)) {
+            state.initialized = true;
+            setupTemplateUpdateNotice();
+            const scheduleCheck = window.requestIdleCallback || function (cb) { setTimeout(cb, 0); };
+            scheduleCheck(() => {
+                detectLegacyTemplate();
+            });
             return;
         }
     }
 
     document.documentElement.classList.remove('afx-scroll-lock');
     document.documentElement.classList.remove('afx-agreed');
+    document.documentElement.classList.remove('afx-ankidroid');
+    if (/Android/i.test(navigator.userAgent)) {
+        document.documentElement.classList.add('afx-ankidroid');
+    }
 
     MANAGED_ELEMENT_IDS.forEach(id => {
         const el = document.getElementById(id);
@@ -72,6 +125,11 @@ function init(templateOptions = {}) {
 
     const activeEffect = resolveActiveEffect(config);
     const { background } = injectOverlayUI(state, config, activeEffect);
+
+    if (state.sharedGL && typeof state.sharedGL.addEventListener === 'function') {
+        state.sharedGL.addEventListener('webglcontextlost', handleContextLost, false);
+        state.sharedGL.addEventListener('webglcontextrestored', handleContextRestored, false);
+    }
 
     attachDockResizeObserver(state);
     attachLayoutHandlers(state);
@@ -92,8 +150,16 @@ function init(templateOptions = {}) {
         state.marquee.enabled = isMarqueeEnabled();
     }
 
+    state.initialized = true;
     attachCardObserver(state);
-    reparentNativeElements();
+    reparentNativeElements(state);
+
+    setupTemplateUpdateNotice();
+
+    const scheduleCheck = window.requestIdleCallback || function (cb) { setTimeout(cb, 0); };
+    scheduleCheck(() => {
+        detectLegacyTemplate();
+    });
 }
 
 function injectCSS() {
@@ -115,10 +181,27 @@ function agree(overlay, deckTitle) {
         } catch (e) { }
     }
 
-    reparentNativeElements();
+    reparentNativeElements(state);
 }
 
 function destroy() {
+    if (state.sharedGL && typeof state.sharedGL.removeEventListener === 'function') {
+        state.sharedGL.removeEventListener('webglcontextlost', handleContextLost);
+        state.sharedGL.removeEventListener('webglcontextrestored', handleContextRestored);
+    }
+
+
+    if (state.effectInstance) {
+        if (typeof state.effectInstance.destroy === 'function') {
+            try {
+                state.effectInstance.destroy();
+            } catch (err) {
+                console.error('[AnkiFX] Error destroying active effect instance during engine teardown:', err);
+            }
+        }
+        state.effectInstance = null;
+    }
+
     if (state.currentEffectId && EFFECTS[state.currentEffectId]?.stop) {
         EFFECTS[state.currentEffectId].stop();
     }
@@ -153,6 +236,7 @@ function destroy() {
 
     document.documentElement.classList.remove('afx-scroll-lock');
     document.documentElement.classList.remove('afx-agreed');
+    document.documentElement.classList.remove('afx-ankidroid');
     Array.from(document.documentElement.classList).forEach(c => {
         if (c.startsWith('afx-effect-')) {
             document.documentElement.classList.remove(c);
@@ -160,6 +244,11 @@ function destroy() {
     });
 
     window.AnkiFX_Config = null;
+
+    if (state._observerTimeout) {
+        clearTimeout(state._observerTimeout);
+        state._observerTimeout = null;
+    }
 
     if (state.observer) {
         state.observer.disconnect();
@@ -185,9 +274,286 @@ function destroy() {
         state._resizeInterval = null;
     }
 
+    if (state.glContext) {
+        if (typeof state.glContext.getExtension === 'function') {
+            const loseContextExt = state.glContext.getExtension('WEBGL_lose_context');
+            if (loseContextExt) {
+                loseContextExt.loseContext();
+            }
+        }
+        state.glContext = null;
+    }
+    state.sharedGL = null;
+    state.shared2D = null;
+    state.sharedMarquee = null;
+    state.ctx2D = null;
+    state.ctxMarquee = null;
+
     state.currentEffectId = null;
+    state.initialized = false;
+
+    if (templateStatusHandler) {
+        window.removeEventListener('ankifx:template-status', templateStatusHandler);
+        templateStatusHandler = null;
+    }
+    activeNoticeState = null;
+
+    const legacyToast = document.getElementById('afx-legacy-toast');
+    if (legacyToast) legacyToast.remove();
+
+    const updateNotice = document.getElementById('afx-update-notice');
+    if (updateNotice) updateNotice.remove();
 
     console.log('[AnkiFX] Destroyed.');
+}
+
+// --- Legacy template migration detection and toast system ---
+const inMemoryStorage = {};
+
+function getSessionValue(key) {
+    try {
+        if (typeof sessionStorage !== 'undefined') {
+            return sessionStorage.getItem(key);
+        }
+    } catch (e) { }
+    return null;
+}
+
+function getLocalValue(key) {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            return localStorage.getItem(key);
+        }
+    } catch (e) { }
+    return null;
+}
+
+function setSessionValue(key, val) {
+    try {
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(key, val);
+            return true;
+        }
+    } catch (e) { }
+    return false;
+}
+
+function setLocalValue(key, val) {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(key, val);
+            return true;
+        }
+    } catch (e) { }
+    return false;
+}
+
+function isToastShown(templateName) {
+    const key = `afx_legacy_toast_${templateName}`;
+
+    const sessionVal = getSessionValue(key);
+    if (sessionVal !== null) {
+        return sessionVal === 'true';
+    }
+
+    return !!inMemoryStorage[key];
+}
+
+function setToastShown(templateName) {
+    const key = `afx_legacy_toast_${templateName}`;
+
+    if (setSessionValue(key, 'true')) {
+        return;
+    }
+    inMemoryStorage[key] = true;
+}
+
+export function detectLegacyTemplate() {
+    if (!window.AnkiFX || !window.AnkiFX.initialized) return;
+
+    const metaEl = document.getElementById('ankifx-template-meta');
+    let isLegacy = false;
+    let templateName = 'unknown';
+
+    if (!metaEl) {
+        isLegacy = true;
+    } else {
+        const name = metaEl.getAttribute('data-template-name');
+        const version = metaEl.getAttribute('data-template-version');
+
+        if (!name) {
+            isLegacy = true;
+        } else {
+            templateName = name.trim();
+        }
+
+        if (!version || version.trim() === '') {
+            isLegacy = true;
+        }
+    }
+
+    if (isLegacy) {
+        showLegacyMigrationToast(templateName);
+    }
+}
+
+
+let activeNoticeState = null;
+let templateStatusHandler = null;
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+export function setupTemplateUpdateNotice() {
+    if (templateStatusHandler) {
+        window.removeEventListener('ankifx:template-status', templateStatusHandler);
+    }
+    activeNoticeState = null;
+
+    const handleStatus = (status) => {
+        if (!status || !status.isNewer) return;
+        if (activeNoticeState) return;
+
+        const container = document.getElementById('afx-update-banner-root');
+        if (!container) return;
+
+        // Gate on the banner root being empty
+        if (container.children.length > 0) return;
+
+        if (document.getElementById('afx-update-notice')) return;
+
+        activeNoticeState = 'outdated';
+
+        const dismissKey = `afx_dismiss_${status.name}_${status.local}`;
+
+        const isDismissed = () => {
+            try {
+                if (sessionStorage.getItem(dismissKey) === 'true') return true;
+            } catch (e) {}
+            try {
+                if (localStorage.getItem(dismissKey) === 'true') return true;
+            } catch (e) {}
+            return false;
+        };
+
+        if (isDismissed()) return;
+
+        const setDismissed = () => {
+            try {
+                sessionStorage.setItem(dismissKey, 'true');
+            } catch (e) {}
+            try {
+                localStorage.setItem(dismissKey, 'true');
+            } catch (e) {}
+        };
+
+        const notice = document.createElement('div');
+        notice.id = 'afx-update-notice';
+        notice.className = 'afx-update-notice';
+
+        const changelogText = status.changelog ? ` (${escapeHTML(status.changelog)})` : '';
+        notice.innerHTML = `
+            <div class="afx-update-notice-content">
+                <div class="afx-update-notice-title">Template Update Available</div>
+                <div>
+                    Card template is v${escapeHTML(status.local)}. Latest is v${escapeHTML(status.remote)}${changelogText}.<br>
+                    Please visit <a class="afx-update-notice-link" href="${escapeHTML(status.targetUrl)}" target="_blank">${escapeHTML(status.displayUrl)}</a> and copy the latest template.
+                </div>
+            </div>
+            <button class="afx-update-notice-close" title="Dismiss">&times;</button>
+        `;
+
+        const closeBtn = notice.querySelector('.afx-update-notice-close');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            notice.classList.remove('afx-visible');
+            setDismissed();
+            setTimeout(() => notice.remove(), 400);
+        });
+
+        const link = notice.querySelector('.afx-update-notice-link');
+        if (link) {
+            link.addEventListener('click', (e) => e.stopPropagation());
+        }
+
+        const stopProps = (e) => e.stopPropagation();
+        ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((evt) => {
+            notice.addEventListener(evt, stopProps, { passive: true });
+        });
+
+        requestAnimationFrame(() => {
+            container.appendChild(notice);
+            requestAnimationFrame(() => {
+                notice.classList.add('afx-visible');
+            });
+        });
+    };
+
+    templateStatusHandler = (e) => {
+        handleStatus(e.detail);
+    };
+
+    window.addEventListener('ankifx:template-status', templateStatusHandler);
+    window.dispatchEvent(new CustomEvent('ankifx:request-template-status'));
+}
+
+export function showLegacyMigrationToast(templateName = 'unknown') {
+    if (isToastShown(templateName)) return;
+    if (document.getElementById('afx-legacy-toast')) return;
+
+    const toast = document.createElement('div');
+    toast.id = 'afx-legacy-toast';
+    toast.className = 'afx-legacy-toast-container';
+
+    toast.innerHTML = `
+        <div class="afx-legacy-toast-content">
+            <div class="afx-legacy-toast-title">Legacy Template Detected</div>
+            <div>
+                An update is required for full AnkiFX compatibility.<br>
+                Please see the <a class="afx-legacy-toast-link" href="https://github.com/robkipa/ankifx/blob/main/docs/template-migration-guide.md" target="_blank">Template Update Guide</a> for step-by-step instructions.
+            </div>
+        </div>
+        <button class="afx-legacy-toast-close" title="Dismiss">&times;</button>
+    `;
+
+    const closeBtn = toast.querySelector('.afx-legacy-toast-close');
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toast.classList.remove('afx-legacy-visible');
+        setToastShown(templateName);
+        setTimeout(() => {
+            toast.remove();
+        }, 400);
+    });
+
+    const link = toast.querySelector('.afx-legacy-toast-link');
+    if (link) {
+        link.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    // Prevent touch/click event propagation to block card flips/mcq interactions
+    const stopProps = (e) => e.stopPropagation();
+    ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((evt) => {
+        toast.addEventListener(evt, stopProps, { passive: true });
+    });
+
+    document.body.appendChild(toast);
+
+    // Trigger visual entry animation
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            toast.classList.add('afx-legacy-visible');
+        });
+    });
 }
 
 // --- Source detection ---
@@ -232,6 +598,8 @@ export const AnkiFX = {
     startMarqueeLoop: () => startMarqueeLoop(state),
     renderEffectControls,
     setControlValue,
+    detectLegacyTemplate,
+    showLegacyMigrationToast,
     get version() { return _version; },
     get buildDate() { return _buildDate; },
     get source() { return _source; },
@@ -242,4 +610,5 @@ export const AnkiFX = {
     get currentEffectId() { return state.currentEffectId; },
     get defaultMarqueeText() { return state.defaultMarqueeText; },
     get EFFECT_SONG_MAP() { return state.EFFECT_SONG_MAP; },
+    get initialized() { return !!state.initialized; },
 };

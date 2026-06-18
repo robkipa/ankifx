@@ -56,6 +56,16 @@ class MiniGl {
                         context.attachShader(material.program, material.vertexShader);
                         context.attachShader(material.program, material.fragmentShader);
                         context.linkProgram(material.program);
+                        
+                        if (material.vertexShader) {
+                            context.detachShader(material.program, material.vertexShader);
+                            context.deleteShader(material.vertexShader);
+                        }
+                        if (material.fragmentShader) {
+                            context.detachShader(material.program, material.fragmentShader);
+                            context.deleteShader(material.fragmentShader);
+                        }
+
                         if (!context.getProgramParameter(material.program, context.LINK_STATUS)) {
                             console.error('[Gradient/WebGL] Program link error:', context.getProgramInfoLog(material.program));
                         }
@@ -732,9 +742,33 @@ export class Gradient {
         this.conf.playing = false;
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
+            this.animationId = null;
         }
         if (this.minigl) {
             this.minigl.cleanup();
         }
+    }
+
+    onContextLost() {
+        this.conf.playing = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.minigl) {
+            this.minigl.gl = null;
+            this.minigl.meshes = [];
+        }
+    }
+
+    onContextRestored(gl) {
+        this.gl = gl;
+        this.minigl = new MiniGl(this.canvas, gl, this.width, this.height);
+        this.initMesh();
+        this.resize();
+        this.updateThemeAwareText();
+        this.conf.playing = true;
+        this.last = 0;
+        this.animationId = requestAnimationFrame(this.animate);
     }
 }

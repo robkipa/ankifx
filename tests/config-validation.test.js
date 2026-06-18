@@ -28,6 +28,14 @@ describe('validateConfig', () => {
             defaultEffect: 'geometry',
         }, 'arr.json');
     });
+
+    it('accepts config without termsText', () => {
+        validateConfig({
+            deckTitle: 'T',
+            marquee: 'm',
+            defaultEffect: 'none',
+        }, 'noterms.json');
+    });
 });
 
 describe('compileConfig', () => {
@@ -40,5 +48,14 @@ describe('compileConfig', () => {
         });
         assert.equal(typeof out.termsText, 'string');
         assert.equal(Buffer.from(out.termsText, 'base64').toString('utf8'), '<b>hi</b>');
+    });
+
+    it('handles missing termsText gracefully', () => {
+        const out = compileConfig({
+            deckTitle: 'T',
+            marquee: 'm',
+            defaultEffect: 'none',
+        });
+        assert.equal(out.termsText, '');
     });
 });

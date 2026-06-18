@@ -29,20 +29,24 @@ export function effectDprFor(activeEffectId, canvasDpr) {
 // --- AnkiMobile CSS variable offsets ---
 
 export function getAnkiMobileOffsets() {
-    const style = getComputedStyle(document.documentElement);
+    const docEl = document.documentElement;
+    const style = docEl ? getComputedStyle(docEl) : null;
     return {
-        ioHeader: parseInt(style.getPropertyValue('--io-header')) || 0,
-        topInset: parseInt(style.getPropertyValue('--top-inset')) || 0,
-        bottomInset: parseInt(style.getPropertyValue('--bottom-inset')) || 0,
+        ioHeader: style ? (parseInt(style.getPropertyValue('--io-header')) || 0) : 0,
+        topInset: style ? (parseInt(style.getPropertyValue('--top-inset')) || 0) : 0,
+        bottomInset: style ? (parseInt(style.getPropertyValue('--bottom-inset')) || 0) : 0,
     };
 }
-
-// --- Shared localStorage getters ---
 
 export function isMarqueeEnabled() {
     return localStorage.getItem('ankifx_marquee_enabled') !== 'false';
 }
 
+export function isCardEnabled() {
+    return localStorage.getItem('ankifx_card_enabled') !== 'false';
+}
+
 export function isSmallScreen() {
     return (window.innerWidth || document.documentElement.clientWidth || 800) < 480;
 }
+

@@ -63,8 +63,13 @@ export function attachDockResizeObserver(state) {
 export function attachCardObserver(state) {
     if (state.observer) return;
 
+    state._observerTimeout = null;
     state.observer = new MutationObserver(() => {
-        setTimeout(() => {
+        if (state._observerTimeout) {
+            clearTimeout(state._observerTimeout);
+        }
+        state._observerTimeout = setTimeout(() => {
+            state._observerTimeout = null;
             const qa = document.getElementById('qa');
             const hasAnkiFX = qa ? !!qa.querySelector('.ankifx-card') : false;
             if (!hasAnkiFX) {
@@ -74,7 +79,7 @@ export function attachCardObserver(state) {
                 }
             } else {
                 // Card still active — ensure native elements are parented correctly
-                reparentNativeElements();
+                reparentNativeElements(state);
             }
         }, 20);
     });
@@ -86,7 +91,12 @@ export function attachCardObserver(state) {
  * top dock groups. Called from init(), agree(), and the card observer —
  * NOT from the per-frame marquee loop.
  */
-export function reparentNativeElements() {
+export function reparentNativeElements(state) {
+    const hasObserver = state && state.observer;
+    if (hasObserver) {
+        state.observer.disconnect();
+    }
+
     const flag = document.getElementById('_flag');
     const mark = document.getElementById('_mark');
     const leftGroup = document.getElementById('afx-top-group-left');
@@ -103,5 +113,9 @@ export function reparentNativeElements() {
     }
     if (flag && rightGroup && flag.parentElement !== rightGroup) {
         rightGroup.insertBefore(flag, btnSkip);
+    }
+
+    if (hasObserver) {
+        state.observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 }

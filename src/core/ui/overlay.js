@@ -1,5 +1,5 @@
 import { EFFECTS } from '../../effects/registry.js';
-import { isIOSDevice, isMarqueeEnabled, isSmallScreen } from '../platform.js';
+import { isIOSDevice, isMarqueeEnabled, isCardEnabled, isSmallScreen } from '../platform.js';
 import { bindConsent } from './consent.js';
 import { bindAudioControls } from './audio-controls.js';
 import { bindEffectSelector } from './effect-selector.js';
@@ -26,14 +26,17 @@ export function injectOverlayUI(state, config, activeEffect) {
     }
 
     const marqueeEnabled = isMarqueeEnabled();
+    const cardEnabled = isCardEnabled();
     const small = isSmallScreen();
 
     // --- Labels with Mobile Shortening ---
     const textPrefix = small ? '📜 ' : '📜 TEXT: ';
-    const bgmPrefix = small ? '' : ' BGM: ';
+    const musicPrefix = small ? '' : ' MUSIC: ';
+    const cardPrefix = small ? '🎴 ' : '🎴 CARD: ';
 
     const marqueeStatusLabel = small ? textPrefix.trim() : (marqueeEnabled ? `${textPrefix}ON` : `${textPrefix}OFF`);
-    const bgmStatusOff = small ? '🔇' : `🔇${bgmPrefix}OFF`;
+    const musicStatusOff = small ? '🔇' : `🔇${musicPrefix}OFF`;
+    const cardStatusLabel = small ? cardPrefix.trim() : (cardEnabled ? `${cardPrefix}ON` : `${cardPrefix}OFF`);
 
     const effPrefix = small ? '🎨 ' : '[ Effect: ';
     const effSuffix = small ? '' : ' ]';
@@ -53,11 +56,16 @@ export function injectOverlayUI(state, config, activeEffect) {
                     <label class="afx-toggle"><input type="checkbox" id="afx-text-toggle" ${marqueeEnabled ? 'checked' : ''}><span class="afx-slider"></span></label>
                     <span id="afx-text-status">${marqueeStatusLabel}</span>
                 </div>
-                <div id="afx-bgm-container" class="afx-control-row">
+                <div id="afx-music-container" class="afx-control-row">
                     <label class="afx-toggle"><input type="checkbox" id="afx-audio-toggle"><span class="afx-slider"></span></label>
-                    <span id="afx-bgm-status">${bgmStatusOff}</span>
+                    <span id="afx-music-status">${musicStatusOff}</span>
+                </div>
+                <div id="afx-card-container" class="afx-control-row">
+                    <label class="afx-toggle"><input type="checkbox" id="afx-card-toggle" ${cardEnabled ? 'checked' : ''}><span class="afx-slider"></span></label>
+                    <span id="afx-card-status">${cardStatusLabel}</span>
                 </div>
             </div>
+
             <div class="afx-control-group-right">
                 <div id="afx-effect-controls-container"></div>
                 <div id="afx-effect-selector-container" class="afx-control-row afx-effect-selector-container">
@@ -75,7 +83,7 @@ export function injectOverlayUI(state, config, activeEffect) {
         hasAgreedSession = localStorage.getItem(`ankifx_agreed_${config.deckTitle}`) === 'true';
     } catch (e) { }
 
-    const hasTerms = config.termsText && config.termsText.trim() !== "" && !hasAgreedSession;
+    const hasTerms = config.termsText && typeof config.termsText === 'string' && config.termsText.trim() !== "" && !hasAgreedSession;
 
     if (hasTerms) {
         overlay.innerHTML = `
@@ -201,6 +209,25 @@ export function injectOverlayUI(state, config, activeEffect) {
             if (state.marquee) {
                 state.marquee.enabled = isEnabled;
             }
+        });
+    }
+
+    // Card Toggle Binding
+    const cardToggle = document.getElementById('afx-card-toggle');
+    if (cardToggle) {
+        const cardStatus = document.getElementById('afx-card-status');
+        const applyCardVisibility = (enabled) => {
+            const small = isSmallScreen();
+            const prefix = small ? '🎴 ' : '🎴 CARD: ';
+            cardStatus.textContent = small ? prefix.trim() : (enabled ? `${prefix}ON` : `${prefix}OFF`);
+            document.documentElement.classList.toggle('afx-card-hidden', !enabled);
+        };
+        applyCardVisibility(cardEnabled);
+
+        cardToggle.addEventListener('change', (e) => {
+            const isEnabled = e.target.checked;
+            localStorage.setItem('ankifx_card_enabled', isEnabled);
+            applyCardVisibility(isEnabled);
         });
     }
 

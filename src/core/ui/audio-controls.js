@@ -2,17 +2,25 @@ import { Jukebox } from '../jukebox.js';
 import { isSmallScreen } from '../platform.js';
 
 /**
- * Audio toggle, jukebox creation, and BGM on/off handler.
+ * Audio toggle, jukebox creation, and Music on/off handler.
  */
 export function bindAudioControls(state, config, overlay) {
     const audioToggle = document.getElementById('afx-audio-toggle');
     if (!audioToggle) return;
 
-    const status = document.getElementById('afx-bgm-status');
+    const status = document.getElementById('afx-music-status');
 
     // Sync initial state
     if (audioToggle.checked) {
         overlay.classList.add('afx-music-playing');
+    }
+
+    if (state.jukebox) {
+        try {
+            state.jukebox.stop();
+        } catch (e) {
+            console.warn('[AnkiFX] Error stopping old jukebox:', e.message);
+        }
     }
 
     state.jukebox = new Jukebox({
@@ -32,9 +40,9 @@ export function bindAudioControls(state, config, overlay) {
         const small = isSmallScreen();
 
         if (turnOn) {
-            overlay.classList.add('afx-bgm-active');
+            overlay.classList.add('afx-music-active');
             overlay.classList.add('afx-music-playing');
-            status.innerHTML = small ? '🔊' : '🔊 BGM: ON';
+            status.innerHTML = small ? '🔊' : '🔊 MUSIC: ON';
 
             // Unlock Web Audio context
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -51,9 +59,9 @@ export function bindAudioControls(state, config, overlay) {
             const targetTrack = config.trackTitle || state.EFFECT_SONG_MAP[activeEffect] || null;
             state.jukebox.playNext(targetTrack);
         } else {
-            overlay.classList.remove('afx-bgm-active');
+            overlay.classList.remove('afx-music-active');
             overlay.classList.remove('afx-music-playing');
-            status.innerHTML = small ? '🔇' : '🔇 BGM: OFF';
+            status.innerHTML = small ? '🔇' : '🔇 MUSIC: OFF';
             state.jukebox.stop();
             config.marquee = state.defaultMarqueeText;
             if (state.marquee) state.marquee.setText(state.defaultMarqueeText);
@@ -63,6 +71,6 @@ export function bindAudioControls(state, config, overlay) {
     // Navigation Bindings (back/skip)
     const btnBack = document.getElementById('afx-btn-back');
     const btnSkip = document.getElementById('afx-btn-skip');
-    if (btnBack) btnBack.addEventListener('click', (e) => { e.stopPropagation(); if (state.jukebox) state.jukebox.playPrevious(); });
-    if (btnSkip) btnSkip.addEventListener('click', (e) => { e.stopPropagation(); if (state.jukebox) state.jukebox.playNext(); });
+    if (btnBack) btnBack.addEventListener('click', (e) => { e.stopPropagation(); if (state.jukebox && state.jukebox.isPlaying) state.jukebox.playPrevious(); });
+    if (btnSkip) btnSkip.addEventListener('click', (e) => { e.stopPropagation(); if (state.jukebox && state.jukebox.isPlaying) state.jukebox.playNext(); });
 }

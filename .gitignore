@@ -1,18 +1,21 @@
 node_modules/
 
-# Build output (only committed engine bundle + default config are tracked)
+# Build output (only committed engine bundle + default config + version manifest are tracked)
 build/*
 !build/card templates/
 !build/_ankifx.js
 !build/_afx_defaults.json
+!build/_afx_version.json
 
 .DS_Store
 *.log
 .gemini/
+.github/
 
-# Private deck configs are git-ignored; only the public defaults template is tracked
+# Private deck configs are git-ignored; only the public defaults template and version manifest are tracked
 configs/_afx_*.json
 !configs/_afx_defaults.json
+!configs/_afx_version.json
 
 # Local developer configuration (contains private paths)
 ankifx.local.json

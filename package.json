@@ -3,6 +3,26 @@
     "version": "1.0.0",
     "description": "AnkiFX Visual Engine",
     "main": "src/index.js",
+    "license": "CC0-1.0",
+    "homepage": "https://github.com/robkipa/ankifx",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/robkipa/ankifx.git"
+    },
+    "bugs": {
+        "url": "https://github.com/robkipa/ankifx/issues"
+    },
+    "keywords": [
+        "anki",
+        "ankimobile",
+        "flashcards",
+        "visual-effects",
+        "canvas2d",
+        "webgl",
+        "tracker-music",
+        "hybrid-loader",
+        "performance"
+    ],
     "scripts": {
         "build": "node build.js",
         "build:local": "node build.js --local",

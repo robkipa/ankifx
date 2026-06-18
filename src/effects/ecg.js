@@ -30,6 +30,14 @@ export function runECG(contexts, config) {
         ecgPanel.id = 'afx-ecg-panel';
         rightGroup.insertBefore(ecgPanel, rightGroup.firstChild);
     }
+    if (ecgPanel && !ecgPanel.querySelector('.afx-ecg-bpm-val')) {
+        ecgPanel.innerHTML = `
+            <div class="afx-ecg-bpm">♥ <span class="afx-ecg-bpm-val">--</span> BPM</div>
+            <div class="afx-ecg-rhythm">--</div>
+        `;
+    }
+    const bpmValEl = ecgPanel ? ecgPanel.querySelector('.afx-ecg-bpm-val') : null;
+    const rhythmLabelEl = ecgPanel ? ecgPanel.querySelector('.afx-ecg-rhythm') : null;
 
     const initialRhythm = localStorage.getItem('ankifx_ecg_rhythm') || 'sinus';
     effect.controls = [
@@ -259,6 +267,9 @@ export function runECG(contexts, config) {
         ctx.stroke();
     }
 
+    let lastBpmDisplay = -1;
+    let lastRhythmLabel = '';
+
     // --- Heart Rate & Rhythm Panel (DOM-based) ---
     function updateECGPanelDOM() {
         if (!ecgPanel) return;
@@ -275,10 +286,14 @@ export function runECG(contexts, config) {
         else if (currentRhythm === 'a_flutter') rhythmLabel = 'ATRIAL FLUTTER';
         else if (currentRhythm === 'torsades') rhythmLabel = 'TORSADES DE POINTES';
 
-        ecgPanel.innerHTML = `
-            <div class="afx-ecg-bpm">♥ ${bpmDisplay} BPM</div>
-            <div class="afx-ecg-rhythm">${rhythmLabel}</div>
-        `;
+        if (bpmValEl && bpmDisplay !== lastBpmDisplay) {
+            bpmValEl.textContent = bpmDisplay;
+            lastBpmDisplay = bpmDisplay;
+        }
+        if (rhythmLabelEl && rhythmLabel !== lastRhythmLabel) {
+            rhythmLabelEl.textContent = rhythmLabel;
+            lastRhythmLabel = rhythmLabel;
+        }
     }
 
     // --- Main Render ---

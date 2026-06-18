@@ -61,3 +61,32 @@ AnkiFX.setControlValue('my_slider', 15.5);
 ## Registry
 
 Never edit `src/effects/registry.js`. Run `npm run build` or `npm run watch`. Note that subdirectories under `src/effects/` (such as `src/effects/lib/`) are automatically ignored by the build script compiler and excluded from the effects registry.
+
+## WebGL Shader Resource Safety
+
+To prevent severe GPU shader compiler resource and memory leaks in WebKit WebViews (such as AnkiMobile on iOS):
+
+1. **Detach and Delete Shaders**: Immediately after compiling shaders and successfully linking the shader program with `gl.linkProgram(program)`, you must detach and delete both the vertex and fragment shaders:
+   ```javascript
+   gl.attachShader(program, vs);
+   gl.attachShader(program, fs);
+   gl.linkProgram(program);
+
+   if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
+       // Detach and delete immediately after successful linking
+       gl.detachShader(program, vs);
+       gl.detachShader(program, fs);
+       gl.deleteShader(vs);
+       gl.deleteShader(fs);
+   }
+   ```
+2. **Release Resources on Stop**: In the `stop()` method, delete all created WebGL programs, textures, and buffers:
+   ```javascript
+   stop() {
+       if (this.program) {
+           gl.deleteProgram(this.program);
+           this.program = null;
+       }
+       // Delete other WebGL resources (buffers, textures, etc.)
+   }
+   ```
