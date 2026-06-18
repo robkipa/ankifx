@@ -10,7 +10,6 @@ build/*
 .DS_Store
 *.log
 .gemini/
-.github/
 
 # Private deck configs are git-ignored; only the public defaults template and version manifest are tracked
 configs/_afx_*.json
