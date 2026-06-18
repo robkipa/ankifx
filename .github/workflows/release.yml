@@ -43,11 +43,11 @@ jobs:
         run: |
           set -e
           # 5a. Create a snapshot of currently committed tracked build outputs
-          mkdir -p /tmp/committed-build/card\ templates
+          mkdir -p /tmp/committed-build
           cp build/_ankifx.js           /tmp/committed-build/
           cp build/_afx_defaults.json   /tmp/committed-build/
           cp build/_afx_version.json    /tmp/committed-build/
-          cp -r "build/card templates/" "/tmp/committed-build/card templates/"
+          cp -r "build/card templates"  /tmp/committed-build/
 
           # 5b. Generate a clean rebuild
           npm run build
