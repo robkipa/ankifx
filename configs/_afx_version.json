@@ -1,13 +1,13 @@
 {
-  "latestTemplateVersion": "1.0.0",
+  "latestTemplateVersion": "1.0.1",
   "templates": {
-    "front_basic": "1.0.0",
-    "front_mcq": "1.0.0",
-    "back_basic": "1.0.0",
-    "back_mcq": "1.0.0"
+    "front_basic": "1.0.1",
+    "front_mcq": "1.0.1",
+    "back_basic": "1.0.1",
+    "back_mcq": "1.0.1"
   },
   "changelog": "Initial template versioning release",
   "compatibility": {
-    "engine": ">=1.0.0"
+    "engine": ">=1.0.1"
   }
 }

@@ -5,7 +5,7 @@ All notable changes to the AnkiFX project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-06-18
+## [1.0.1] - 2026-06-18
 
 This is the initial release of AnkiFX, a visual and interactive engine for Anki cards. It introduces responsive WebGL/Canvas2D background effects, interactive card styling, and retro audio support without impacting native Anki scheduling.
 
