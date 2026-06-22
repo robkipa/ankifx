@@ -1,13 +1,13 @@
 {
-  "latestTemplateVersion": "1.0.1",
+  "latestTemplateVersion": "1.0.2",
   "templates": {
-    "front_basic": "1.0.1",
-    "front_mcq": "1.0.1",
-    "back_basic": "1.0.1",
-    "back_mcq": "1.0.1"
+    "front_basic": "1.0.2",
+    "front_mcq": "1.0.2",
+    "back_basic": "1.0.2",
+    "back_mcq": "1.0.2"
   },
-  "changelog": "Initial template versioning release",
+  "changelog": "Tappable-First interaction architecture",
   "compatibility": {
-    "engine": ">=1.0.1"
+    "engine": ">=1.0.2"
   }
 }

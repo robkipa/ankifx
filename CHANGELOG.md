@@ -5,6 +5,16 @@ All notable changes to the AnkiFX project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-06-22
+
+### Added
+- **Tappable-First Architecture**: Replaced the manual event propagation intercept architecture with a declarative `.tappable` routing system, making overlays, notices, audio controls, consents, and debug panel natively prevent card-flips on AnkiMobile.
+- **Desktop & AnkiWeb Compatibility**: Introduced a centralized document-level click listener that intercepts interactive targets (native buttons, inputs, links, and `.tappable` controls) and stops propagation only for non-mobile platforms.
+- **Robust Integration Test Suite**: Added a comprehensive DOM integration suite in `tests/tappable.test.js` to simulate and assert click propagation, `.tappable` container-level tap routing, and frame scheduling.
+
+### Changed
+- **Removed stopPropagation Blocks**: Safely removed 16 manual `e.stopPropagation()` and `e.stopImmediatePropagation()` calls across core controllers (consent, audio-controls, visualizers, debug panel, legacy notifications, and MCQ templates) to restore natural event bubbling.
+
 ## [1.0.1] - 2026-06-18
 
 This is the initial release of AnkiFX, a visual and interactive engine for Anki cards. It introduces responsive WebGL/Canvas2D background effects, interactive card styling, and retro audio support without impacting native Anki scheduling.

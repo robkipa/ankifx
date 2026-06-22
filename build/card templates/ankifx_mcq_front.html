@@ -1,6 +1,6 @@
 <!-- AnkiFX Template Metadata -->
 <div id="ankifx-template-meta" style="display: none !important;" data-template-name="front_mcq"
-    data-template-version="1.0.1" data-engine-compatibility=">=1.0.1"></div>
+    data-template-version="1.0.2" data-engine-compatibility=">=1.0.2"></div>
 
 <!-- Reserved Container for Update Banner -->
 <div id="afx-update-banner-root"></div>
@@ -53,7 +53,7 @@
             var metaEl = document.getElementById("ankifx-template-meta");
             if (!metaEl) return;
 
-            var localVersion = metaEl.getAttribute("data-template-version") || "1.0.1";
+            var localVersion = metaEl.getAttribute("data-template-version") || "1.0.2";
             var templateName = metaEl.getAttribute("data-template-name") || "front_mcq";
 
             var manifestUrl = window.AnkiFX_BOOTSTRAP.manifest;
@@ -354,7 +354,7 @@
             // 1. First initialize AnkiFX if it is loaded
             if (!ankiFXInitialized) {
                 try {
-                    afxLog("Initializing AnkiFX engine (Source: " + (AnkiFX.source || 'local') + ", Version: " + (AnkiFX.version || '1.0.1') + ")...", "info");
+                    afxLog("Initializing AnkiFX engine (Source: " + (AnkiFX.source || 'local') + ", Version: " + (AnkiFX.version || '1.0.2') + ")...", "info");
                     ankiFXInitialized = true;
                     AnkiFX.init();
                     afxLog("AnkiFX engine initialized successfully.", "success");
