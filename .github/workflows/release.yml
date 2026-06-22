@@ -76,7 +76,7 @@ jobs:
               const tag = process.env.REF_NAME;
               const version = tag.replace(/^v/, "");
               const escapedVersion = version.replace(/\./g, "\\.");
-              const regex = new RegExp(`##\\s*\\[?${escapedVersion}\\]?(?:\\s|\\n)(.*?)(?=\\n##|$)`, "s");
+              const regex = new RegExp(`##\\s*\\[?${escapedVersion}\\]?[^\\n]*\\n+(.*?)(?=\\n##\\s|$)`, "s");
               const match = content.match(regex);
               if (match) {
                 fs.writeFileSync("release_body.md", match[1].trim());
