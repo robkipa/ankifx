@@ -8,7 +8,7 @@ import { startMarqueeLoop } from './marquee-loop.js';
 import { handleResize, initViewportMonitoring } from './viewport.js';
 import { injectOverlayUI } from './ui/overlay.js';
 import { renderEffectControls, setControlValue } from './ui/controls.js';
-import { isMarqueeEnabled } from './platform.js';
+import { isMarqueeEnabled, markTappable, isInteractiveTarget } from './platform.js';
 
 // --- Managed DOM element IDs (shared between init teardown and destroy) ---
 const MANAGED_ELEMENT_IDS = [
@@ -41,6 +41,7 @@ const state = {
     initialized: false,
     effectInstance: null,
     isContextLost: false,
+    _globalClickListener: null,
 };
 
 function handleContextLost(e) {
@@ -154,6 +155,15 @@ function init(templateOptions = {}) {
     attachCardObserver(state);
     reparentNativeElements(state);
 
+    state._globalClickListener = (e) => {
+        if (isInteractiveTarget(e.target)) {
+            e.stopPropagation();
+        }
+    };
+    if (typeof document.addEventListener === 'function') {
+        document.addEventListener('click', state._globalClickListener);
+    }
+
     setupTemplateUpdateNotice();
 
     const scheduleCheck = window.requestIdleCallback || function (cb) { setTimeout(cb, 0); };
@@ -258,6 +268,13 @@ function destroy() {
     if (state.dockObserver) {
         state.dockObserver.disconnect();
         state.dockObserver = null;
+    }
+
+    if (state._globalClickListener) {
+        if (typeof document.removeEventListener === 'function') {
+            document.removeEventListener('click', state._globalClickListener);
+        }
+        state._globalClickListener = null;
     }
 
     if (state._layoutHandler) {
@@ -457,6 +474,7 @@ export function setupTemplateUpdateNotice() {
         const notice = document.createElement('div');
         notice.id = 'afx-update-notice';
         notice.className = 'afx-update-notice';
+        markTappable(notice);
 
         const changelogText = status.changelog ? ` (${escapeHTML(status.changelog)})` : '';
         notice.innerHTML = `
@@ -472,20 +490,9 @@ export function setupTemplateUpdateNotice() {
 
         const closeBtn = notice.querySelector('.afx-update-notice-close');
         closeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
             notice.classList.remove('afx-visible');
             setDismissed();
             setTimeout(() => notice.remove(), 400);
-        });
-
-        const link = notice.querySelector('.afx-update-notice-link');
-        if (link) {
-            link.addEventListener('click', (e) => e.stopPropagation());
-        }
-
-        const stopProps = (e) => e.stopPropagation();
-        ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((evt) => {
-            notice.addEventListener(evt, stopProps, { passive: true });
         });
 
         requestAnimationFrame(() => {
@@ -511,6 +518,7 @@ export function showLegacyMigrationToast(templateName = 'unknown') {
     const toast = document.createElement('div');
     toast.id = 'afx-legacy-toast';
     toast.className = 'afx-legacy-toast-container';
+    markTappable(toast);
 
     toast.innerHTML = `
         <div class="afx-legacy-toast-content">
@@ -525,25 +533,11 @@ export function showLegacyMigrationToast(templateName = 'unknown') {
 
     const closeBtn = toast.querySelector('.afx-legacy-toast-close');
     closeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
         toast.classList.remove('afx-legacy-visible');
         setToastShown(templateName);
         setTimeout(() => {
             toast.remove();
         }, 400);
-    });
-
-    const link = toast.querySelector('.afx-legacy-toast-link');
-    if (link) {
-        link.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    }
-
-    // Prevent touch/click event propagation to block card flips/mcq interactions
-    const stopProps = (e) => e.stopPropagation();
-    ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'].forEach((evt) => {
-        toast.addEventListener(evt, stopProps, { passive: true });
     });
 
     document.body.appendChild(toast);

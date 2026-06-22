@@ -50,3 +50,16 @@ export function isSmallScreen() {
     return (window.innerWidth || document.documentElement.clientWidth || 800) < 480;
 }
 
+export function markTappable(el) {
+    if (el && !el.classList.contains('tappable')) {
+        el.classList.add('tappable');
+    }
+    return el;
+}
+
+export function isInteractiveTarget(target) {
+    if (!target) return false;
+    return !!target.closest(
+        '.tappable, button, input, select, textarea, a, summary, video, audio'
+    );
+}

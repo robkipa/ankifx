@@ -71,6 +71,6 @@ export function bindAudioControls(state, config, overlay) {
     // Navigation Bindings (back/skip)
     const btnBack = document.getElementById('afx-btn-back');
     const btnSkip = document.getElementById('afx-btn-skip');
-    if (btnBack) btnBack.addEventListener('click', (e) => { e.stopPropagation(); if (state.jukebox && state.jukebox.isPlaying) state.jukebox.playPrevious(); });
-    if (btnSkip) btnSkip.addEventListener('click', (e) => { e.stopPropagation(); if (state.jukebox && state.jukebox.isPlaying) state.jukebox.playNext(); });
+    if (btnBack) btnBack.addEventListener('click', (e) => { if (state.jukebox && state.jukebox.isPlaying) state.jukebox.playPrevious(); });
+    if (btnSkip) btnSkip.addEventListener('click', (e) => { if (state.jukebox && state.jukebox.isPlaying) state.jukebox.playNext(); });
 }

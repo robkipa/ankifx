@@ -24,7 +24,6 @@ export function bindConsent(state, config, overlay, btn) {
     }
 
     btn.addEventListener('click', (e) => {
-        e.stopPropagation();
         if (!btn.disabled) {
             window.AnkiFX.agree(overlay, config.deckTitle);
         }

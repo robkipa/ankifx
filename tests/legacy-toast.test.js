@@ -397,7 +397,7 @@ describe('Legacy Template Migration Toast System', () => {
         assert.equal(toastAfter, undefined, 'Toast should be removed from DOM on close');
     });
 
-    it('stops event propagation on the toast container for tap/mouse events', () => {
+    it('sets the legacy toast container as tappable to prevent card flips', () => {
         const { context, appendedBodyElements, flushRafs } = createMockContext({
             metaExists: false
         });
@@ -405,18 +405,8 @@ describe('Legacy Template Migration Toast System', () => {
         context.window.AnkiFX.init();
         flushRafs();
         const toast = appendedBodyElements.find(el => el.id === 'afx-legacy-toast');
-
-        // Check touchstart, click, etc.
-        const events = ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'];
-        events.forEach(evt => {
-            const handlers = toast.listeners[evt] || [];
-            assert.equal(handlers.length, 1, `Toast must listen for ${evt}`);
-            let propagationStopped = false;
-            handlers[0]({
-                stopPropagation: () => { propagationStopped = true; }
-            });
-            assert.ok(propagationStopped, `Propagation must be stopped for event ${evt}`);
-        });
+        assert.ok(toast);
+        assert.ok(toast.classList.contains('tappable'), 'Toast container must have tappable class');
     });
 
     it('removes toast element on destroy() if it exists in the DOM', () => {

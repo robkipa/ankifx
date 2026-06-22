@@ -1,5 +1,5 @@
 import { EFFECTS } from '../../effects/registry.js';
-import { isIOSDevice, isMarqueeEnabled, isCardEnabled, isSmallScreen } from '../platform.js';
+import { isIOSDevice, isMarqueeEnabled, isCardEnabled, isSmallScreen, markTappable } from '../platform.js';
 import { bindConsent } from './consent.js';
 import { bindAudioControls } from './audio-controls.js';
 import { bindEffectSelector } from './effect-selector.js';
@@ -7,6 +7,7 @@ import { bindEffectSelector } from './effect-selector.js';
 export function injectOverlayUI(state, config, activeEffect) {
     const overlay = document.createElement('div');
     overlay.id = 'ankifx-overlay';
+    markTappable(overlay);
 
     if (config.debug) {
         overlay.classList.add('afx-debug-active');
@@ -50,7 +51,7 @@ export function injectOverlayUI(state, config, activeEffect) {
         `).join('');
 
     const dockHtml = `
-        <div id="afx-bottom-dock">
+        <div id="afx-bottom-dock" class="tappable">
             <div class="afx-control-group-left">
                 <div class="afx-control-row">
                     <label class="afx-toggle"><input type="checkbox" id="afx-text-toggle" ${marqueeEnabled ? 'checked' : ''}><span class="afx-slider"></span></label>
@@ -87,7 +88,7 @@ export function injectOverlayUI(state, config, activeEffect) {
 
     if (hasTerms) {
         overlay.innerHTML = `
-            <div class="afx-dialog">
+            <div class="afx-dialog tappable">
                 <div class="afx-terms">
                     <h3>${config.deckTitle}</h3>
                     ${config.deckAuthor ? `<h4 class="afx-deck-author">by ${config.deckAuthor}</h4>` : ''}
@@ -136,6 +137,7 @@ export function injectOverlayUI(state, config, activeEffect) {
     // --- Top dock ---
     const topDock = document.createElement('div');
     topDock.id = 'afx-top-dock';
+    markTappable(topDock);
 
     const topLeftGroup = document.createElement('div');
     topLeftGroup.className = 'afx-top-group-left';
@@ -170,20 +172,6 @@ export function injectOverlayUI(state, config, activeEffect) {
     topDock.appendChild(topRightGroup);
     overlay.appendChild(topDock);
 
-    // --- Universal propagation stopper (AnkiMobile tap fix) ---
-    const stopProps = (e) => {
-        const isAgreed = overlay.classList.contains('afx-agreed-state');
-        const isInteractive = e.target.closest('button, input, select, .afx-slider, .afx-toggle, .afx-playback-btn, select option');
-
-        if (!isAgreed) {
-            e.stopPropagation();
-        } else if (isInteractive) {
-            e.stopPropagation();
-        }
-    };
-    ['touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'].forEach(evt => {
-        overlay.addEventListener(evt, stopProps, { passive: false });
-    });
 
     // --- Bind logic modules ---
     const btn = document.getElementById('afx-consent-btn');

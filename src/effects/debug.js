@@ -1,3 +1,5 @@
+import { markTappable } from '../core/platform.js';
+
 let animationId = null;
 let currentW, currentH;
 let debugContainer = null;
@@ -182,6 +184,7 @@ export function runDebug(contexts, config) {
     // Create main container
     debugContainer = document.createElement('div');
     debugContainer.className = 'afx-debug-container';
+    markTappable(debugContainer);
 
     // Columns structure
     const cols = document.createElement('div');
@@ -268,7 +271,6 @@ export function runDebug(contexts, config) {
     const filterBtns = consolePanel.querySelectorAll('.afx-console-filter-btn');
     filterBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            e.stopPropagation();
             filterBtns.forEach(b => {
                 b.classList.remove('active');
                 b.style.background = 'rgba(255,255,255,0.05)';
@@ -286,7 +288,6 @@ export function runDebug(contexts, config) {
     const clearConsoleBtn = consolePanel.querySelector('#afx-clear-console-btn');
     if (clearConsoleBtn) {
         clearConsoleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
             window.AnkiFX_Captured_Logs.length = 0;
             try {
                 sessionStorage.removeItem('ankifx_captured_logs');
@@ -333,7 +334,6 @@ export function runDebug(contexts, config) {
         });
 
         execBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
             executeInput();
         });
     }

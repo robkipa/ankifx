@@ -51,7 +51,6 @@ export function renderEffectControls(effect) {
                 `;
                 const btn = row.querySelector('button');
                 btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
                     if (control.onClick) control.onClick();
                 });
             }

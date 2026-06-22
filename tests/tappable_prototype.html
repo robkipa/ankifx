@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnkiFX Tappable-First Interaction Prototype</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            color: #3b82f6;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        /* Simulated Card Container */
+        .card-container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding-bottom: 8px;
+        }
+
+        .card-content {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        /* Controls styled to represent various UI cases */
+        .control-group {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        /* Interactive controls */
+        button, .custom-button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+
+        button:hover, .custom-button:hover {
+            background-color: #2563eb;
+        }
+
+        .custom-button {
+            background-color: #10b981;
+        }
+
+        .custom-button:hover {
+            background-color: #059669;
+        }
+
+        /* Nested widget demo */
+        .nested-widget {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nested-slider {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* Action feed / logging */
+        .log-container {
+            width: 100%;
+            max-width: 500px;
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+            color: #94a3b8;
+        }
+
+        .log-clear-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #94a3b8;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+
+        .log-clear-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .log-native-flip {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .log-native-ignore {
+            color: #eab308;
+        }
+
+        .log-js-action {
+            color: #10b981;
+        }
+
+        .log-system {
+            color: #94a3b8;
+        }
+
+        .dynamic-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        /* Visual indicator for tappable elements */
+        .tappable-highlight {
+            outline: 2px solid rgba(234, 179, 8, 0.4);
+            outline-offset: 2px;
+        }
+
+        .toggle-highlight-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>AnkiFX Tappable-First Interaction Proof of Concept</h1>
+    <div class="subtitle">
+        Simulates AnkiMobile's WKWebView gesture-recognizer hit-testing model. Tapping the card flips it, 
+        unless the tap falls on a <code>.tappable</code> element or natively interactive element. 
+        <strong>Zero propagation control (stopPropagation) is used in Javascript.</strong>
+    </div>
+
+    <div class="toggle-highlight-container">
+        <input type="checkbox" id="toggleHighlights" checked>
+        <label for="toggleHighlights">Outline <code>.tappable</code> elements in gold</label>
+    </div>
+
+    <!-- Simulated Card -->
+    <div id="simulatedCard" class="card-container">
+        <div class="card-title">Card Content (#qa)</div>
+        <div class="card-content">
+            This card represents the template view. Tapping anywhere in the dark area simulates a 
+            <strong>Card-Flip gesture</strong>. The controls below demonstrate interactive elements.
+        </div>
+
+        <!-- 1. Native Interactive Element -->
+        <div class="control-group">
+            <div class="control-group-title">1. Native HTML Interactive Element (Auto-ignored)</div>
+            <button id="nativeBtn">Standard HTML Button</button>
+        </div>
+
+        <!-- 2. Custom Tappable Button -->
+        <div class="control-group">
+            <div class="control-group-title">2. Custom Div styled as Button</div>
+            <div id="customTappableBtn" class="custom-button tappable">div.tappable Button</div>
+        </div>
+
+        <!-- 3. Nested Widget Demo -->
+        <div class="control-group">
+            <div class="control-group-title">3. Nested Widget Container (Entire Area is Tappable)</div>
+            <div class="nested-widget tappable" id="nestedWidget">
+                <div>Volume Control (Custom widget container is .tappable)</div>
+                <input type="range" class="nested-slider" min="0" max="100" value="50" id="nestedSlider">
+                <button id="nestedBtn">Mute</button>
+            </div>
+        </div>
+
+        <!-- 4. Dynamic Tappable Generator -->
+        <div class="control-group">
+            <div class="control-group-title">4. Dynamic Elements</div>
+            <button id="genBtn">Add Dynamic Tappable Button</button>
+            <div class="dynamic-container" id="dynamicArea"></div>
+        </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="log-container">
+        <div class="log-header">
+            <span>Event & Gesture Feed</span>
+            <button class="log-clear-btn" id="clearLog">Clear</button>
+        </div>
+        <div id="logFeed"></div>
+    </div>
+
+    <script>
+        const logFeed = document.getElementById('logFeed');
+        const clearLog = document.getElementById('clearLog');
+        const simulatedCard = document.getElementById('simulatedCard');
+        const nativeBtn = document.getElementById('nativeBtn');
+        const customTappableBtn = document.getElementById('customTappableBtn');
+        const nestedSlider = document.getElementById('nestedSlider');
+        const nestedBtn = document.getElementById('nestedBtn');
+        const genBtn = document.getElementById('genBtn');
+        const dynamicArea = document.getElementById('dynamicArea');
+        const toggleHighlights = document.getElementById('toggleHighlights');
+
+        // Helper to log actions
+        function log(message, type) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString().split(' ')[0];
+            entry.innerHTML = `[${time}] ${message}`;
+            logFeed.appendChild(entry);
+            logFeed.scrollTop = logFeed.scrollHeight;
+        }
+
+        log("System initialized. Gesture recognizer active.", "log-system");
+
+        // -------------------------------------------------------------
+        // MOCK NATIVE ANKIMOBILE GESTURE RECOGNIZER
+        // -------------------------------------------------------------
+        // In AnkiMobile, a native gesture recognizer intercepts pointer events.
+        // It traverses up the DOM ancestor chain from the hit-tested target.
+        // If it finds a natively interactive tag or class="tappable", it aborts the gesture.
+        // Otherwise, it flips the card.
+        // We simulate this using a capture-phase listener on the window to model native interception.
+        
+        window.addEventListener('click', function(e) {
+            // Traverse up DOM hierarchy from the hit target
+            let current = e.target;
+            let isInteractive = false;
+            let path = [];
+
+            while (current && current !== document.documentElement) {
+                path.push(current.tagName.toLowerCase() + (current.id ? '#' + current.id : '') + (current.className ? '.' + Array.from(current.classList).join('.') : ''));
+                
+                // AnkiMobile's rule:
+                // Is it standard HTML interactive element or does it have the 'tappable' class?
+                const isNativeTag = ['a', 'button', 'input', 'select', 'textarea', 'summary', 'video'].includes(current.tagName.toLowerCase());
+                const hasTappableClass = current.classList.contains('tappable');
+                const hasInlineOnclick = current.hasAttribute('onclick');
+
+                if (isNativeTag || hasTappableClass || hasInlineOnclick) {
+                    isInteractive = true;
+                    const matchReason = isNativeTag ? `<${current.tagName.toLowerCase()}>` : 
+                                        hasTappableClass ? '.tappable' : 'onclick attribute';
+                    log(`[Gesture Recognizer] Hit ${matchReason} at <code>${current.tagName.toLowerCase()}</code>. Ignoring card-flip.`, "log-native-ignore");
+                    break;
+                }
+                current = current.parentElement;
+            }
+
+            if (!isInteractive) {
+                log("[Gesture Recognizer] Tap outside interactive controls. <strong>FLIPPING CARD!</strong>", "log-native-flip");
+            }
+        }, true); // Capture phase represents the native layer intercepting the touch before DOM bubbling!
+
+        // -------------------------------------------------------------
+        // JAVASCRIPT EVENT LISTENERS (ZERO stopPropagation)
+        // -------------------------------------------------------------
+
+        // 1. Standard button click
+        nativeBtn.addEventListener('click', () => {
+            log("JS: Native &lt;button&gt; clicked.", "log-js-action");
+        });
+
+        // 2. Custom button click
+        customTappableBtn.addEventListener('click', () => {
+            log("JS: Custom .tappable div clicked.", "log-js-action");
+        });
+
+        // 3. Nested slider change
+        nestedSlider.addEventListener('input', (e) => {
+            log(`JS: Slider value changed to ${e.target.value}.`, "log-js-action");
+        });
+
+        // 3b. Nested button click
+        nestedBtn.addEventListener('click', () => {
+            log("JS: Mute button clicked.", "log-js-action");
+        });
+
+        // 4. Dynamic button generator
+        genBtn.addEventListener('click', () => {
+            const newBtn = document.createElement('div');
+            // We give it the 'tappable' class so the gesture recognizer ignores it
+            newBtn.className = 'custom-button tappable';
+            newBtn.textContent = 'Dynamic Button';
+            
+            // Highlight it if enabled
+            if (toggleHighlights.checked) {
+                newBtn.classList.add('tappable-highlight');
+            }
+
+            newBtn.addEventListener('click', () => {
+                log("JS: Dynamically created .tappable button clicked.", "log-js-action");
+            });
+
+            dynamicArea.appendChild(newBtn);
+            log("JS: Added new .tappable element to card.", "log-js-action");
+        });
+
+        // Clear log
+        clearLog.addEventListener('click', () => {
+            logFeed.innerHTML = '';
+            log("Logs cleared.", "log-system");
+        });
+
+        // -------------------------------------------------------------
+        // VISUAL TESTING ASSISTANTS
+        // -------------------------------------------------------------
+        function updateHighlights() {
+            const elements = document.querySelectorAll('.tappable');
+            elements.forEach(el => {
+                el.classList.toggle('tappable-highlight', toggleHighlights.checked);
+            });
+        }
+
+        toggleHighlights.addEventListener('change', updateHighlights);
+        // Run initially
+        updateHighlights();
+
+        // Observe dynamic container changes to apply highlights to future elements
+        const observer = new MutationObserver(updateHighlights);
+        observer.observe(dynamicArea, { childList: true });
+    </script>
+</body>
+</html>
