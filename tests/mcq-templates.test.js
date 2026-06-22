@@ -48,7 +48,8 @@ describe('MCQ Card Templates', () => {
                 if (selector === '.afx-mcq-opt') return [optA, optB];
                 return [];
             },
-            appendChild: (el) => { elements.push(el); }
+            appendChild: (el) => { elements.push(el); },
+            addEventListener: () => {}
         };
 
         const mockContext = {
@@ -271,7 +272,8 @@ describe('MCQ Card Templates', () => {
                     if (selector === '.afx-mcq-opt') return [optA, optB];
                     return [];
                 },
-                appendChild: (el) => { elements.push(el); }
+                appendChild: (el) => { elements.push(el); },
+                addEventListener: () => {}
             };
 
             const mockContext = {
@@ -306,5 +308,57 @@ describe('MCQ Card Templates', () => {
         // 3. If undefined/unspecified, it should default to true (enabled)
         const store3 = runWithConfig({});
         assert.equal(store3['ankifx_mcq_shuffle_enabled'], 'true');
+    });
+
+    it('front script stops event propagation on the options container to prevent AnkiMobile card flip', () => {
+        const scriptCode = extractMCQFrontScript();
+
+        const sessionStorageStore = {};
+        const mockSessionStorage = {
+            getItem: (key) => sessionStorageStore[key] || null,
+            setItem: (key, val) => { sessionStorageStore[key] = String(val); },
+            removeItem: (key) => { delete sessionStorageStore[key]; }
+        };
+
+        const registeredEvents = {};
+        const box = {
+            getAttribute: (attr) => attr === 'data-qtype' ? 'single' : '',
+            classList: { add: () => {}, remove: () => {} },
+            querySelectorAll: () => [],
+            appendChild: () => {},
+            addEventListener: (evt, handler) => {
+                registeredEvents[evt] = handler;
+            }
+        };
+
+        const mockContext = {
+            document: {
+                getElementById: (id) => {
+                    if (id === 'afxMcqOptions') return box;
+                    if (id === 'Card_Type') return { textContent: '1' };
+                    return null;
+                },
+                addEventListener: () => {},
+                removeEventListener: () => {}
+            },
+            sessionStorage: mockSessionStorage,
+            triggerAnkiFX: () => {},
+            setTimeout: (cb) => cb(),
+            console
+        };
+
+        vm.runInNewContext(scriptCode + '\nrun();', mockContext);
+
+        // Verify all 7 event types have registered stop propagation handlers
+        const expectedEvents = ['touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'];
+        expectedEvents.forEach(evt => {
+            assert.ok(registeredEvents[evt], `Missing listener for event: ${evt}`);
+            let propagationStopped = false;
+            const mockEvent = {
+                stopPropagation: () => { propagationStopped = true; }
+            };
+            registeredEvents[evt](mockEvent);
+            assert.equal(propagationStopped, true, `Event ${evt} did not call stopPropagation()`);
+        });
     });
 });

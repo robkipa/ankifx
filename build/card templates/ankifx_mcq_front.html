@@ -422,6 +422,17 @@
         }
 
         var box = document.getElementById('afxMcqOptions'); if (!box) return;
+
+        // Prevent tap-to-flip on AnkiMobile for the options container
+        var stopProps = function (e) {
+            e.stopPropagation();
+        };
+        if (typeof box.addEventListener === 'function') {
+            ['touchstart', 'touchend', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click'].forEach(function (evt) {
+                box.addEventListener(evt, stopProps, { passive: true });
+            });
+        }
+
         var cardTypeEl = document.getElementById('Card_Type');
         var cardTypeVal = cardTypeEl ? cardTypeEl.textContent.trim() : '1';
 
