@@ -81,4 +81,88 @@ describe('build smoke', () => {
             context.window.AnkiFX.destroy();
         });
     });
+
+    it('destroy() clears MCQ sessionStorage keys', () => {
+        const bundlePath = path.join(__dirname, '..', 'build', '_ankifx.js');
+        const code = fs.readFileSync(bundlePath, 'utf8');
+
+        const sessionStorageStore = {
+            'ankifx_mcq_selected': '["A"]',
+            'ankifx_mcq_shuffled_order': '["B","A"]',
+            'ankifx_mcq_question_text': 'Question?',
+            'ankifx_mcq_shuffle_enabled': 'true',
+            'other_key': 'preserve_me'
+        };
+
+        const mockSessionStorage = {
+            getItem: (key) => sessionStorageStore[key] || null,
+            setItem: (key, val) => { sessionStorageStore[key] = String(val); },
+            removeItem: (key) => { delete sessionStorageStore[key]; }
+        };
+
+        // Mock minimal DOM
+        const mockWindow = {
+            AnkiFX_Eval_History: [],
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            cancelAnimationFrame: () => {},
+        };
+        const mockDocument = {
+            currentScript: { src: 'http://localhost/ankifx.js' },
+            getElementById: (id) => {
+                if (id === '_flag' || id === '_mark') {
+                    return { parentNode: { removeChild: () => {} } };
+                }
+                return null;
+            },
+            createElement: () => ({ textContent: '', id: '' }),
+            head: { appendChild: () => {} },
+            body: { appendChild: () => {} },
+            documentElement: {
+                classList: {
+                    remove: () => {},
+                    forEach: (cb) => {
+                        cb('afx-effect-none');
+                    }
+                },
+                style: {
+                    removeProperty: () => {}
+                }
+            }
+        };
+
+        const context = {
+            window: mockWindow,
+            document: mockDocument,
+            sessionStorage: mockSessionStorage,
+            console: { log: () => {}, warn: () => {} },
+            process: { env: {} },
+            localStorage: {
+                getItem: () => null,
+                setItem: () => {},
+            },
+            cancelAnimationFrame: () => {},
+        };
+        context.window.document = mockDocument;
+
+        const vm = require('node:vm');
+        vm.createContext(context);
+        vm.runInContext(code, context);
+
+        assert.ok(context.window.AnkiFX);
+        assert.equal(typeof context.window.AnkiFX.destroy, 'function');
+
+        // Run destroy
+        context.window.AnkiFX.destroy();
+
+        // Verify MCQ keys are cleared
+        assert.equal(sessionStorageStore['ankifx_mcq_selected'], undefined);
+        assert.equal(sessionStorageStore['ankifx_mcq_shuffled_order'], undefined);
+        assert.equal(sessionStorageStore['ankifx_mcq_question_text'], undefined);
+        assert.equal(sessionStorageStore['ankifx_mcq_shuffle_enabled'], undefined);
+
+        // Verify other keys are preserved
+        assert.equal(sessionStorageStore['other_key'], 'preserve_me');
+    });
 });
+

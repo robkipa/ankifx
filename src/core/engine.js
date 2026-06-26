@@ -255,6 +255,13 @@ function destroy() {
 
     window.AnkiFX_Config = null;
 
+    try {
+        sessionStorage.removeItem("ankifx_mcq_selected");
+        sessionStorage.removeItem("ankifx_mcq_shuffled_order");
+        sessionStorage.removeItem("ankifx_mcq_question_text");
+        sessionStorage.removeItem("ankifx_mcq_shuffle_enabled");
+    } catch (e) { }
+
     if (state._observerTimeout) {
         clearTimeout(state._observerTimeout);
         state._observerTimeout = null;
