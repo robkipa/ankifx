@@ -5,6 +5,16 @@ All notable changes to the AnkiFX project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-07-01
+
+### Changed
+- **Demand-Driven Rendering Architecture**: The marquee/overlay animation loop (`requestAnimationFrame`) is now event-driven instead of always-on. The loop only runs when there is actual visual work to perform (active marquee text or effect overlays). When effect is "None" and marquee is disabled, no animation frames are scheduled, reducing idle CPU usage to effectively zero.
+- **Reactive Marquee Lifecycle**: The `Marquee` class now exposes an `onChange` hook that fires when `enabled` or `text` changes, allowing the engine to reactively start or stop the marquee rendering loop without polling.
+- **Effect-Aware Loop Evaluation**: Switching effects now re-evaluates whether the marquee loop is needed, properly starting it for effects with `drawOverlay` (e.g. Aurora star twinkle) and stopping it for effects without overlays.
+
+### Fixed
+- **Idle CPU Drain**: Eliminated continuous `requestAnimationFrame` scheduling when no animation is active. Previously, the marquee loop ran at ~60fps even with effect set to "None" and marquee disabled, causing unnecessary CPU usage, battery drain, and fan activity.
+
 ## [1.0.3] - 2026-06-26
 
 ### Fixed
