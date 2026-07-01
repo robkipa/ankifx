@@ -1,6 +1,6 @@
 export class Marquee {
     constructor(text = '', position = 'bottom', options = {}) {
-        this.text = text;
+        this._text = text;
         this.position = position;
         this.applyStyles(options);
 
@@ -16,7 +16,24 @@ export class Marquee {
         this.baseBounce = 12;
         this.fontFamily = '"Courier New", monospace';
         this.fontWeight = 'bold';
-        this.enabled = true;
+        this._enabled = true;
+
+        /** @type {Function|null} Called when enabled or text changes */
+        this.onChange = null;
+    }
+
+    get enabled() { return this._enabled; }
+    set enabled(v) {
+        const changed = this._enabled !== v;
+        this._enabled = v;
+        if (changed && typeof this.onChange === 'function') this.onChange();
+    }
+
+    get text() { return this._text; }
+    set text(v) {
+        const changed = this._text !== v;
+        this._text = v;
+        if (changed && typeof this.onChange === 'function') this.onChange();
     }
 
     applyStyles(options = {}) {

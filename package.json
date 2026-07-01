@@ -1,6 +1,6 @@
 {
     "name": "ankifx",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "AnkiFX Visual Engine",
     "main": "src/index.js",
     "license": "CC0-1.0",

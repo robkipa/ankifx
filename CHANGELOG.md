@@ -5,6 +5,15 @@ All notable changes to the AnkiFX project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-07-01
+
+### Changed
+- **Demand-Driven Animation Loop**: Restructured the marquee/overlay `requestAnimationFrame` loop to run only when there is active marquee text or an active overlay (e.g. Aurora stars overlay). When Effect is "None" and marquee is disabled, no frames are scheduled, reducing idle CPU usage to ~0%.
+- **Atomic Engine/Template Updates**: Refactored the version check manifest schema (`_afx_version.json`) to specify `latestEngineVersion` separately. This allows atomic engine upgrades without requiring a corresponding card template update.
+
+### Fixed
+- **Marquee Toggle Freeze Bug**: Fixed a bug where toggling marquee text off while it is scrolling left frozen text on the canvas. The engine now explicitly clears the marquee canvas upon stopping the loop.
+
 ## [1.0.3] - 2026-06-26
 
 ### Fixed

@@ -1,6 +1,7 @@
 import { EFFECTS } from '../effects/registry.js';
 import { renderEffectControls } from './ui/controls.js';
 import { effectDprFor, getAnkiMobileOffsets, isMarqueeEnabled } from './platform.js';
+import { evaluateMarqueeLoop } from './marquee-loop.js';
 
 export function startEffect(state, config, container, position, activeEffect) {
     // Apply debug class
@@ -132,5 +133,8 @@ export function startEffect(state, config, container, position, activeEffect) {
         // Clear any dynamic controls from previous effect
         renderEffectControls(null);
     }
+
+    // Re-evaluate whether the marquee loop needs to run for this effect
+    evaluateMarqueeLoop(state);
 }
 

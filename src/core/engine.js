@@ -4,7 +4,7 @@ import styles from './afx_styles.css';
 import { mergeAndHardenConfig, resolveActiveEffect, tryRestoreAgreedSession } from './config-merge.js';
 import { startEffect } from './effect-lifecycle.js';
 import { attachCardObserver, attachDockResizeObserver, attachLayoutHandlers, reparentNativeElements } from './layout-handlers.js';
-import { startMarqueeLoop } from './marquee-loop.js';
+import { evaluateMarqueeLoop } from './marquee-loop.js';
 import { handleResize, initViewportMonitoring } from './viewport.js';
 import { injectOverlayUI } from './ui/overlay.js';
 import { renderEffectControls, setControlValue } from './ui/controls.js';
@@ -139,17 +139,22 @@ function init(templateOptions = {}) {
 
     if (!state.marquee) {
         state.marquee = new Marquee(config.marquee, config.marqueePosition);
-        startMarqueeLoop(state);
     } else {
         state.marquee.setText(config.marquee);
         state.marquee.setPosition(config.marqueePosition);
     }
+
+    // Wire reactive onChange so marquee loop starts/stops when user toggles marquee
+    state.marquee.onChange = () => evaluateMarqueeLoop(state);
 
     startEffect(state, config, background, config.marqueePosition, activeEffect);
 
     if (state.marquee) {
         state.marquee.enabled = isMarqueeEnabled();
     }
+
+    // Start the marquee loop only if something actually needs per-frame rendering
+    evaluateMarqueeLoop(state);
 
     state.initialized = true;
     attachCardObserver(state);
@@ -596,7 +601,7 @@ export const AnkiFX = {
     injectCSS,
     handleResize: () => handleResize(state),
     startEffect: (config, container, position, activeEffect) => startEffect(state, config, container, position, activeEffect),
-    startMarqueeLoop: () => startMarqueeLoop(state),
+    evaluateMarqueeLoop: () => evaluateMarqueeLoop(state),
     renderEffectControls,
     setControlValue,
     detectLegacyTemplate,
